@@ -15,7 +15,7 @@ android.enableJetifier=true
 
 #### 迁移
 在 AndroidStudio 3.2 或更高版本（截图中 AndroidStudio 为 3.2 版本）中执行操作： Refactor > Migrate to AndroidX;
-![Android_1](学习笔记/AndoridX_1.png)
+![Android_1](https://github.com/zhiyufen/BlackBeanStudio/blob/master/%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/AndoridX_1.png)
 
 [AndroidX官方迁移文档](https://links.jianshu.com/go?to=https%3A%2F%2Fdeveloper.android.com%2Ftopic%2Flibraries%2Fsupport-library%2Frefactor%23migrate)
 
