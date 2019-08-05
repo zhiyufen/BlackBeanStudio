@@ -1,4 +1,4 @@
-#[Jetpack]LiveData组件学习
+# [Jetpack]LiveData组件学习
 
 ## 简介
 LiveData是Android框架组件中的组成部分，对于数据
