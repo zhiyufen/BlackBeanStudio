@@ -1,4 +1,4 @@
-# [Jetpack]LiveData组件学习
+#[Jetpack]LiveData组件学习
 
 ## 简介
 LiveData是Android框架组件中的组成部分，对于数据
@@ -68,7 +68,9 @@ public class JetPackActivity extends AppCompatActivity {
 }
 ```
 LiveData.observe()方法中，第一个参数为实现LifecycleOwner的实例， 第二个为当数据变化时的通知回调；
-这样基本使用就完全了，下面我们一边学习源码，一边看一下其中的注意事项；
+使用observe()方法，只有在Lifecycle生命周期为处于STARTED状态或RESUMED状态下时，才能监听到数据的变化；如果需要不管什么状态下都监听到的话，就需要使用observeForever(observer)方法，但该需要不会主动释放订阅，需要调用removeObserver方法进行释放；
+
+这样基本使用的学习就结束了，用法很简洁，下面我们一边学习源码，一边看一下其中的注意事项；
 
 ## 源码学习
 
@@ -105,10 +107,10 @@ LiveData.observe()方法中，第一个参数为实现LifecycleOwner的实例，
             new SafeIterableMap<>();
 ```
 
-
-### LifecycleBoundObserver
 我们来学习一下LifecycleBoundObserver；
+
 LifecycleBoundObserver是LiveData的内部类，继承于ObserverWrapper并实现GenericLifecycleObserver接口；
+
 LifecycleBoundObserver的作用的就是根据Lifecyele的生命周期的变化，从而决定当前订阅者的活跃状态及是否去掉订阅者；
 
 ```java
@@ -132,6 +134,7 @@ LifecycleBoundObserver的作用的就是根据Lifecyele的生命周期的变化�
 ```
 
 activeStateChanged()方法是ObserverWrapper父类的：
+
 ```java
         void activeStateChanged(boolean newActive) {
             if (newActive == mActive) {
@@ -285,6 +288,10 @@ DefaultTaskExecutor的postToMainThread()方法；
         mMainHandler.post(runnable);
     }
 ```
+
+到这里LiveData的学习就结束了，具体运行需要后面慢慢摸了；
+
+
 
 参考文章：
 > [Android官方架构组件LiveData: 观察者模式领域二三事](https://juejin.im/post/5c25753af265da61561f5335)
