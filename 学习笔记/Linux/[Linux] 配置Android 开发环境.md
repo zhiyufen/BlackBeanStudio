@@ -101,3 +101,48 @@ ssh-keygen -t rsa -C "abc@sina.com"
 
 更多详细可参考 [生成SSH秘钥连接github（详细教程）](https://blog.csdn.net/lucky__yang/article/details/80148420)
 
+### 五，安装 Understand 软件
+
+下载地址： [官网](https://scitools.com/download/all-builds/) 或直接点击下载 [ Understand-5.1.1010-Linux-64bit.tgz ](http://builds.scitools.com/all_builds/b1010/Understand/Understand-5.1.1010-Linux-64bit.tgz)
+
+下载后，可参选官网文档进行安装：https://scitools.com/documents/unix_install.php
+
+1. 复制到 /opt/目录； 
+
+2. 进行解压安装：
+
+   ```shell
+   tar -xvzf Understand-5.1.1010-Linux-64bit.tgz
+   ```
+
+   
+
+3. 添加环境变量：
+
+   ```
+   #Understand
+   export STIHOME=/opt/scitools
+   export PATH=$PATH:$STIHOME/bin/linux64/
+   ```
+
+   
+
+4. 运行：./understand
+
+5. 破解: 
+
+   点击中间的命令框Add Permanent Liscense，再点击Add Eval or SDL (RegCode)
+
+    输入证书CODE(32/64 都可用)：09E58CD1FB79
+
+### 六，安装 Kget 下载管理器
+
+下载及安装：https://linuxappfinder.com/package/kget
+
+### 七, 安装 sublime text
+
+官网下载： https://www.sublimetext.com/3
+
+
+
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20

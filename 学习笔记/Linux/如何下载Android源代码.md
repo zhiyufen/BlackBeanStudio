@@ -61,7 +61,7 @@
 要将 Android 源代码树从默认清单中指定的代码库下载到工作目录，请运行以下命令：
 
 ```shell
-repo sync
+sudo repo sync
 ```
 
 Android 源代码文件将位于工作目录中对应的项目名称下。初始同步操作将需要 1 个小时或更长时间才能完成。要详细了解 `repo sync` 和其他 Repo 命令，请参阅[开发](https://source.android.google.cn/source/developing.html)部分。
@@ -88,5 +88,64 @@ Android 源代码文件将位于工作目录中对应的项目名称下。初始
    sudo apt-get install python
    ```
 
+3. Checking out projects:  55% (313/568) platform/frameworks/baseerror: unable to create file tests/P_str_escape/str\\escape.rs: 无效的参数
+
+   ```shell
+   Checking out projects:  55% (313/568) platform/frameworks/baseerror: unable to create file tests/P_str_escape/str\\escape.rs: 无效的参数
+   error: Cannot checkout platform/frameworks/compile/slang: GitError: Cannot initialize work tree for platform/frameworks/compile/slang
+   Traceback (most recent call last):
+     File "/media/yufenzhi/BB/studio/android_source/.repo/repo/main.py", line 530, in <module>
+       _Main(sys.argv[1:])
+     File "/media/yufenzhi/BB/studio/android_source/.repo/repo/main.py", line 505, in _Main
+       result = run()
+     File "/media/yufenzhi/BB/studio/android_source/.repo/repo/main.py", line 498, in <lambda>
+       run = lambda: repo._Run(name, gopts, argv) or 0
+     File "/media/yufenzhi/BB/studio/android_source/.repo/repo/main.py", line 201, in _Run
+       result = cmd.Execute(copts, cargs)
+     File "/media/yufenzhi/BB/studio/android_source/.repo/repo/subcmds/sync.py", line 994, in Execute
+       self._Checkout(all_projects, opt)
+   
+   ```
+
+   找到 `rameworks\compile\slang\tests\P_str_escape`目录并打开， 创建str目录并在str目录下创建空文件escape.rs:再重新运行 repo sync
+   
+4. autotest目录无法checkout
+
+   ```shell
+   ..
+   Fetching project platform/external/jemalloc
+   Fetching projects: 100% (545/545), done.
+   error: unable to create file frontend/client/src/autotest/public/Open+Sans:300.woff (Invalid argument)
+   error: unable to create file frontend/client/src/autotest/public/Roboto+Bold:700.woff (Invalid argument)
+   error: unable to create file frontend/client/src/autotest/public/Roboto+Light:300.woff (Invalid argument)
+   error: unable to create file frontend/client/src/autotest/public/Roboto+Medium:500.woff (Invalid argument)
+   error: unable to create file frontend/client/src/autotest/public/Roboto+Regular:400.woff (Invalid argument)
+   error: unable to create file server/site_tests/display_EdidStress/test_data/edids/weekly/SCT_272_STEELCASE_m:s_HDMI.txt (Invalid argument)
+   Checking out files: 100% (9442/9442), done.
+   Traceback (most recent call last):
+     File "/mnt/d/aosp/.repo/repo/main.py", line 531, in <module>
+       _Main(sys.argv[1:])
+   ```
+
+   目前没找到根本的解决方案，但可以使用下面的办法跳过这些错误从而能checkout其它文件：
+
+   打开 ./repo/repo/project.py 文件，注释掉下面的语句：
+
+   ```
+   # if GitCommand(self, cmd).Wait() != 0:
+   # raise GitError("cannot initialize work tree")
+   ```
+
+   最后失败的项目如下，但不妨碍我们看Android源码：
+
+   ```shell
+   error: Exited sync due to checkout errors
+   Failing repos:
+   external/autotest
+   external/libunwind
+   prebuilts/tools
+   ```
+
+   
 
 更多问题可参考：https://source.android.google.cn/source/downloading
