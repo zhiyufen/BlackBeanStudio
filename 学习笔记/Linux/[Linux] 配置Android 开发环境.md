@@ -143,6 +143,12 @@ ssh-keygen -t rsa -C "abc@sina.com"
 
 官网下载： https://www.sublimetext.com/3
 
+### 八, 安装 PyCharm
+下载地址： https://www.jetbrains.com/pycharm/download/download-thanks.html?platform=linux&code=PCC
+安装官方文档： https://www.jetbrains.com/help/pycharm/installation-guide.html#
 
-
-1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+打开：
+```shell
+cd /opt/pycharm-*/bin
+sh pycharm.sh
+```
