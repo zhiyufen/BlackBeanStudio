@@ -2,7 +2,11 @@
 
 [TOC]
 
-更多信息请参考：[Mockk官网](https://mockk.io/)
+配置：
+
+```groovy
+testImplementation "io.mockk:mockk:{version}"
+```
 
 ## 一. Mock对象
 
@@ -15,4 +19,8 @@
 
 
 ## 协程相关测试
+
+
+
+更多信息请参考：[Mockk官网](https://mockk.io/)
 
