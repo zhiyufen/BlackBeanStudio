@@ -22,8 +22,6 @@
 
 ![Iamge](http://www.uml.org.cn/oobject/images/2016090621.png)
 
-##### 
-
 ##### 实现（Interface Realization）
 
 接口实现：是一种类与接口的关系，表示类是接口所有特征和行为的实现；

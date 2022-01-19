@@ -433,52 +433,34 @@ every {
 
 ### 6. ArgumentCaptor
 
-Mockito:
-
-```kotlin
-
-```
-
-Mockk:
-
-```kotlin
-
-```
-
-
+当你需要对参数进行断言时，在Mockito中，可使用 ArgumentCaptor ； ArgumentCaptor会持有栈，并传递给mock方法， 稍后你可以调用它进行断言：
 
 Mockito:
 
 ```kotlin
+val personArgument = ArgumentCaptor.forClass(Person::class.java)
 
+verify(mockPhone).call(personArgument.capture())
+
+assertEquals("Sarah Jane", personArgument.value.name)
 ```
+
+在Mocckk有一个类似的CapturingSlot：
 
 Mockk:
 
 ```kotlin
+val personSlot = slot<Person>()
 
+every { mockPhone.call(capture(personSlot)) }
+
+assertEquals("Sarah Jane", personSlot.captured.name)
 ```
 
-
-
-Mockito:
-
-```kotlin
-
-```
-
-Mockk:
-
-```kotlin
-
-```
+作为CapturingSlot的替代方案，可以使用MutableList存储捕获的参数。只需传递一个MutableList的实例来捕获，而不是slot。这允许您记录所有捕获的值，因为CapturingSlot只记录最近的值。
 
 
 
-
-
-
-
-https://notwoods.github.io/mockk-guidebook/docs/mockito-migrate/when/
-
-https://ithelp.ithome.com.tw/articles/10219718
+> https://notwoods.github.io/mockk-guidebook/
+>
+> https://ithelp.ithome.com.tw/articles/10219718

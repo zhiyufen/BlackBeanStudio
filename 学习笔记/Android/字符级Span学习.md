@@ -131,6 +131,7 @@ paint.setTypeface(Typeface.xx);//设置字体
 float width = Layout.getDesiredWidth(str,textPaint);
 ```
 
+一般写文字到某点的中心时(x, y)，对方方式为CENTER时， drawText的位置为：(x, y + (- fontMetrics.ascent - fontMetrics.descent)/2)
 
 
 ### 3. 各个Span介绍

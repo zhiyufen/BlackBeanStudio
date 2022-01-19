@@ -284,7 +284,7 @@ public interface MyDao {
 @Query 是DAO类中使用的主要注解，它允许你在数据库中执行读/写操作。每个@Query方法在编译时被校验，所以如果有问题，将在编译时出现编译错误而不是运行时；
 
    它给出警告如果仅有一些字段匹配；
-   
+
    它报错如果没有字段匹配
 
 ```java
@@ -593,6 +593,52 @@ public class MigrationTest {
     }
 }
 ```
+
+### 相关问题
+
+问题点：
+
+```xml
+Cannot figure out how to save this field into database. You can consider adding a type converter for it.
+```
+
+原因是： Jetpack的Room不支持直接存储列表的功能, 需要添加一个转换器：
+
+比如： val idList: MutableList<String>, 就编译失败； 
+
+解决方案：
+
+实现一个转换器：
+
+```kotlin
+class StringListTypeConverter {
+    val gson by lazy { Gson() }
+
+    @TypeConverter
+    fun translateToStringList(data: String):  List<String> {
+        val listType = object : TypeToken<List<String>>() {}.type
+        return gson.fromJson(data, listType)
+    }
+
+    @TypeConverter
+    fun translateToString(list: List<String>): String {
+        return gson.toJson(list)
+    }
+}
+```
+
+使用时：
+
+```kotlin
+@Keep
+@Entity(tableName = "table_name")
+@TypeConverters(StringListTypeConverter::class)
+class DatabaseItem(
+    val idList: MutableList<String>
+)
+```
+
+
 
 本文参考文章：
 

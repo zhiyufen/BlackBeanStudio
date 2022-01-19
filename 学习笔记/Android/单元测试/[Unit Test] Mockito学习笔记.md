@@ -169,7 +169,7 @@ inOrder.verify(mock, calls(2)).someMethod( "some arg" );
 verify(mock, only()).someMethod();
 //above is a shorthand for following 2 lines of code:
 verify(mock).someMethod();
-verifyNoMoreInvocations(mock);
+verifyNoMoreIntercations(mock);
 
 //验证在给定时间调用某方法多少次
 //passes when someMethod() is called within given time span
@@ -564,6 +564,8 @@ public class MockitoRuleTest {
 ```
 
 其它注解也是一样的用法；
+
+@InjectMocks：创建一个实例，并将@Mock（或@Spy）注解创建的mock注入到用该实例中。
 
 #### 迭代式插桩
 
