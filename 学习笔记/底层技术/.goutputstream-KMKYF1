@@ -892,10 +892,8 @@ readString：
 
             if (slots[i].hasData) {
                 if (obj == null || handles.lookupException(passHandle) != null) {
-                    //没有数据可以解析
                     defaultReadFields(null, slotDesc); // skip field values
                 } else if (slotDesc.hasReadObjectMethod()) {
-                    //如果有自定义的readObejct方法则按自定义的逻辑执行
                     ThreadDeath t = null;
                     boolean reset = false;
                     SerialCallbackContext oldContext = curContext;
@@ -938,9 +936,8 @@ readString：
                      */
                     defaultDataEnd = false;
                 } else {
-                    //没有自定义的readObject方法则按默认的解析方法进行解析
                     defaultReadFields(obj, slotDesc);
-                }
+                    }
 
                 if (slotDesc.hasWriteObjectData()) {
                     skipCustomData();
@@ -959,151 +956,8 @@ readString：
     }
 ```
 
-先判断是否自定义了反序列化的方法readObject，如果有就按自定义的执行，如果没有就执行默认的反序列化方法defaultReadFields方法执行：
-
-```java
-
-    /**
-     * Reads in values of serializable fields declared by given class
-     * descriptor.  If obj is non-null, sets field values in obj.  Expects that
-     * passHandle is set to obj's handle before this method is called.
-     */
-    private void defaultReadFields(Object obj, ObjectStreamClass desc)
-        throws IOException
-    {
-        Class<?> cl = desc.forClass();
-        if (cl != null && obj != null && !cl.isInstance(obj)) {
-            throw new ClassCastException();
-        }
-
-        int primDataSize = desc.getPrimDataSize();
-        if (primVals == null || primVals.length < primDataSize) {
-            primVals = new byte[primDataSize];
-        }
-        bin.readFully(primVals, 0, primDataSize, false);
-        if (obj != null) {
-            //设置基本数据类型的属性,只包括八大基本数据类型Integer、Long等不在内
-            desc.setPrimFieldValues(obj, primVals);
-        }
-
-        int objHandle = passHandle;
-        ObjectStreamField[] fields = desc.getFields(false);
-        Object[] objVals = new Object[desc.getNumObjFields()];
-        int numPrimFields = fields.length - objVals.length;
-        for (int i = 0; i < objVals.length; i++) {
-            ObjectStreamField f = fields[numPrimFields + i];
-            //递归设置对象类型属性
-            objVals[i] = readObject0(f.isUnshared());
-            if (f.getField() != null) {
-                handles.markDependency(objHandle, passHandle);
-            }
-        }
-        if (obj != null) {
-            desc.setObjFieldValues(obj, objVals);
-        }
-        passHandle = objHandle;
-    }
-
-```
-
-## 自定义序列化和反序列化
-
-JDK除了支持默认的序列化逻辑，还可以自行定义序列化的方式，只需要对应的类中重写writeObject方法和readObject方法即可：
-
-```java
-/**自定义序列化方法*/
-private void writeObject(ObjectOutputStream outputStream)
-            throws IOException
-    {
-        outputStream.writeLong(this.userId);
-        outputStream.writeObject(this.userName);
-        outputStream.writeObject(this.password);
-    }
-
-/**自定义反序列化方法*/
-private void readObject(ObjectInputStream inputStream){
-        try {
-            this.userId = inputStream.readLong();
-            this.password = (String)inputStream.readObject();
-            this.userName = (String)inputStream.readObject();
-//            this.addr = (String)inputStream.readObject();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-```
-
-注：
-
-1. writeObject和readObject方法必须同时重写，如果只重写一个，那么会抛异常，因为序列化之后的是字节序列，是严格按字节序列的顺序来解析的
-2. writeObject和readObject方法中的序列化和反序列化字段必须完全一致，也就是序列化字段的数量和顺序（writeObejct可以多write几个字段，但是顺序必须在后面，readObject不可多字段，否则解析会抛异常）
-3. writeObejct和readObject都必须是private修饰的，public修饰的不起作用
-
-## 问题总结 
-
-#### 序列化之前和反序列化之后的对象可能是同一个对象吗？
-
-可能，反序列化是通过对象的构造方法进行初始化的，所以正常情况下不会是之前的同一个对象，而且序列化之前的对象可能都已经被垃圾回收的；
-但是在单例模式下是可以通过自定义反序列化逻辑进行操作的，详情如下第二条。
-
-#### 序列化和反序列化破坏单例模式的解决？
-
-解决办法如下：在单例类中定义方法readResolve方法，并且返回Object对象
-
-```
- private Object readResolve(){
-        return user;
-    }
-```
-
- 原理请参考：反序列化关键类ObjectInputStream类中的readOrdinaryObject方法 --> 先判断该类中是否包含有readResolveMethod方法，如果有就通过readResolve方法返回结果，再将返回的结果赋值给通过反序列化生成的对象，所以只需要readResolve方法返回的也是同样的单例对象即可。
-
-#### 实现了Serializable接口的serialVersionUID作用是什么？
-
-在反序列化时，JVM需要知道所属的class文件，在序列化的时候JVM会记录class文件的版本号，默认是JVM自动生成，也可以手动定义。反序列化时JVM会按版本号找指定版本的class文件进行反序列化，
-
-如果class文件有版本号在序列化和反序列化时不一致就会导致反序列化失败，会抛异常提示版本号不一致;
-
-#### JDK序列化的整体逻辑流程？
-
-序列化流程：
-
-1. 调用ObjectStreamClass.lookup方法得到类的描述对象（保护类的基本数据属性、对象属性、是否包含readObject、writeObject等和序列化相关的方法等）
-2. 判断对象的类型如果是String、Array、Eunm则直接转化为字节序列，如果是对象类型（实现了Serializable接口的属性）则执行writeOrdinaryObject方法
-3. 如果属性所属的类自定义了writeObject方法则通过反射的方式invoke自定义的writeObject方法，如果没有自定义则按默认的序列化方法defaultWriteFields方法
-4. 递归所有属性，如果是基本数据类型则直接写入流中，如果不是基本数据类型则递归属性继续执行writeObject方法写入流中
-5. 最终的结果是将对象转化成二进制流中，所以需要依次按顺序将对象的信息写入到流中
-
-反序列化流程：
-
-1. 从字节流中读取字节，判断字节对应所属的类型（Class、String、Object等等）
-2. 根据不同的类型，继续读取对应的字节数据，如果不是对象类型那么就可以直接解析出基本数据类型的数据
-3. 如果是对象类型，先读取字节TC_CLASSDESC，从而解析读取并解析出ObjectStreamClass对象，也就是类的描述信息对象
-4. 通过ObjectStreamClass可以得到类的构造方法，并通过构造器的newInstance初始化对象，然后开始给属性赋值
-5. 判断是否有自定义readObject，有的话通过反射执行readObject方法反序列化，如果没有则按默认的反序列化方法defaultReadFields方法
-6. 依次从流中读取属性的值进行赋值，如果是对象类型则递归继续执行readObject方法进行读取流操作
-
-### 各种序列化方式的对比
-
-目前主流的序列化方式包括JDK序列化、Hessian、JSON、Kryo、ProtoBuf等，对比如下：
-
-|                | JDK                                                          | Hessian                                                      | JSON                                                         | Kryo                                                         | ProtoBuf                                                     |
-| -------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| 序列化数据大小 | 很大                                                         | 较小                                                         | 较大                                                         | 很小                                                         | 很小                                                         |
-| 序列化速度     | 很慢                                                         | 较快                                                         | 较快                                                         | 很快                                                         | 很快                                                         |
-| 总结           | 无论是序列化的效率还是序列化的数据大小都没有竞争力，另外也不支持跨语言，唯一的优点是不需要依赖第三方Jar包就可以实现 | 效率比JDK要好，数据大小也比JDK要小，且均比JSON要好。且可以跨语言 | 效率和数据量大小相比于JDK序列化优化了很多，但是整体效率不高。优点是序列化后的数据是字符串，可观性较好且支持跨语言 | 效率非常高，序列化数据非常小，基本上和ProtoBuf整体性能一致，但是不支持跨语言。 | 效率非常高，序列化数据非常小，但是需要提前定义序列化的数据结构，且提前静态编译，使用成本变高 |
-
-总结：
-
-JDK序列化：JDK序列化会把对象类的描述和所有属性的元数据都序列化为字节流，另外继承的元数据也会序列化，所以导致序列化的元素较多且字节流很大，但是由于序列化了所有信息所以相对而言更可靠。但是如果只需要序列化属性的值时就比较浪费。
-
-Hessian序列化：Hessian序列化将基本数据类型进行了标记，如Integer类型标记为I，字符串类型标记为S，Map类型标记为M，类描述信息标记为C，通过各种标记大大简化了属性类信息的序列化过程。另外对于自定义类型如果已经序列化过，会用R进行标记，并
-
-加上引用的位置。通常类的描述信息比字段的值信息要大，所以通过简化类的描述信息来大幅度提升了序列化的效果以及字节流的减少。
-
-Kryo序列化：Kryo序列化使用之前可以对涉及到的Class进行注册，注册之后Kryo对象会缓存Class的注册信息，后续序列化和反序列化时都只需要写入Class注册之后绑定的ID即可，比完整的Class信息会效率高很多。但是在注册的时候必须保证注册的顺序不允许发生改变，特别是在集群部署的情况下。A服务器注册的顺序和B服务器注册的顺序不一样，那么A服务器序列化的数据B服务器是无法反序列化的。如果需要新增注册的类只能在后面继续添加注册的类信息。
-
 本文笔记于：
 
 > https://blog.csdn.net/abc123lzf/article/details/82318148
->https://www.cnblogs.com/jackion5/p/11819393.html
+>
+> https://www.cnblogs.com/jackion5/p/11819393.html

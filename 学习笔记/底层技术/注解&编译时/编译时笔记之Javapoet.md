@@ -1,4 +1,4 @@
-# APT笔记之Javapoet
+# 编译时笔记之Javapoet
 
 &emsp;&emsp;javapoet是配合APT在项目编译期间动态生成代码，并且使用其API可以自动生成导包语句。这可以减少我们在项目开发中模板化代码的编写，减轻程序员开发所需要的时间，提高编码效率。
 
@@ -18,7 +18,7 @@ dependencies {
 &emsp;&emsp;JavaPoet定义了一系列类来尽可能优雅的描述java源文件的结构,主要的类可以分为以下5大种：Spec,Name,CodeBlock,JavaFile, CodeWrite.
 
 1. Spec 用来描述Java中基本的元素:
-	```
+	```kotlin
 	AnnotationSpec  //注解元素
 	FieldSpec       //字段元素
 	MethodSpec      //构造方法和一般方法元素
@@ -26,13 +26,13 @@ dependencies {
 	TypeSpec        //类和接口元素
 	```
 2. Name 用来描述类型的引用，包括Void，原始类型（int，long等）和Java类等。
-	```
-	TypeName 
-	ArrayTypeName
-	ClassName
+	```kotlin
+	TypeName //属性
+	ArrayTypeName //通过指定元素类型生成包含该元素的数组，或获取指定的mirror/type等效的数组类型
+	ClassName //通过包名和类名生成的对象，在JavaPoet中相当于为其指定Class
 	ParameterizedTypeName  //泛型
-	TypeVariableName
-	WildcardTypeName
+	TypeVariableName //类型变量类型
+	WildcardTypeName //通配符类型
 	```
 3. CodeBlock 用来描述代码块的内容，包括普通的赋值，if判断，循环判断等。
 4. JavaFile 完整的Java文件，JavaPoet的主要的入口。

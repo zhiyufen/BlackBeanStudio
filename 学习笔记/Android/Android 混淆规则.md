@@ -4,11 +4,17 @@
 ### 1. 混淆简介
 Android代码混淆是一种应用源代码保护技术，用来防止别人对apk进行逆向分析；从Android2.3开始，Google就在SDK中加入了ProGuard的工具，使用它来进行代码的混淆。
 
+```html
+ProGuard is a Java class file shrinker, optimizer, obfuscator, and preverifier.
+```
+
 ProGuard是一个压缩、优化和混淆Java字节码文件的免费工具， 其作用有以下几点：
--删除代码中的注释；
--删除代码中没有用到的类、字段、方法和属性；
--会把代码中的包名、类名、方法名，变量名等修改为abcd...这种没有意义的名字，使得反编译出来的代 码难以阅读，从而达到防止apk被破解和逆向分析的目的；
--经过ProGuard混淆后，apk安装包会变小；
+
+- 删除代码中的注释；
+- 删除代码中没有用到的类、字段、方法和属性；
+- 会把代码中的包名、类名、方法名，变量名等修改为abcd...这种没有意义的名字，使得反编译出来的代 码难以阅读，从而达到防止apk被破解和逆向分析的目的；
+- 在Java字节码层面上进行优化，剔除方法中一些冗余的调用;
+- 经过ProGuard混淆后，apk安装包会变小；
 
 在实际项目中，有些Java类不能进行混淆，需要配置混淆规则；打包apk时一般都需要进行混淆处理；
 另外混淆后会生成mapping.txt文件，该文件需要存档以便用来还原和查看混淆后的出错日志；
@@ -232,7 +238,7 @@ keep指令格式：
 -dontskipnonpubliclibraryclasses
 # 不做预校验，preverify是proguard的四个步骤之一，Android不需要preverify，去掉这一步能够加快混淆速度。
 -dontpreverify
--verbose
+-verbosef
 # 避免混淆泛型
 -keepattributes Signature
 
@@ -373,6 +379,12 @@ retrace.bat -verbose mapping.txt obfuscated_trace.txt
 所有在 AndroidManifest.xml 涉及到的类已经自动被保持，因此不用特意去添加这块混淆规则。（很多老的混淆文件里会加，现在已经没必要）; 
 
 proguard-android.txt已经存在一些默认混淆规则，没必要在 proguard-rules.pro 重复添加
+
+
+
+### Others:
+
+[Android 代码混淆选项详细说明](https://blog.csdn.net/u011732740/article/details/51545722)
 
 本文学习转直接复制相关内容到此笔记的文章:
 > [Android 代码混淆 混淆方案](https://www.jianshu.com/p/e9d3c57ab92f?utm_campaign=haruki&utm_content=note&utm_medium=reader_share&utm_source=qq)

@@ -11,7 +11,7 @@
 Data Layer API 由系统可以发送和同步的一组数据对象以及用于向应用通知某些事件的监听器组成：
 
 - **数据项**：
-  [`DataItem`](https://developers.google.com/android/reference/com/google/android/gms/wearable/DataItem.html) 提供在手持式设备和穿戴式设备之间自动同步的数据存储。
+  [`DataItem`](https://developers.google.com/android/reference/com/google/android/gms/wearable/DataItem.html) 提供在手持式设备和穿戴式设备之间自动同步的数据存储。负载的大小上限为 **100KB**
 - **资源**：
   [`Asset`](https://developers.google.com/android/reference/com/google/android/gms/wearable/Asset.html) 对象用于发送二进制 blob，如图片。您将资源附加到数据项后，系统会自动为您处理资源传输，通过缓存大型资源来避免重复传输，从而节省蓝牙带宽。
 - **消息**：
@@ -31,13 +31,15 @@ Data Layer API 由系统可以发送和同步的一组数据对象以及用于�
 
 如需调用 Data Layer API，请使用 `Wearable` 类获取各种客户端类的实例;
 
+> When a Wear app has an accompanying mobile app, you must use the same key to [sign](https://developer.android.com/studio/publish/app-signing) each of the two apps for them to communicate using the [Data Layer APIs](https://developer.android.com/training/wearables/data-layer).
+
 客户端类实例： 
 
 - DataClient： 一般用于发送DataItem；
 - MessageClient:  用于发送 Message数据
 - CapabilityClient: 用于检测哪些设备上有能够胜任的节点，确保其有处理某消息的能力；
-- NodeClient
-- ChannelClient
+- NodeClient： 用于当前设备的节点和连接设备的节点信息；
+- ChannelClient： 用于操作Channel来发送大型数据；
 
 ### 2.1 获取Client:
 
