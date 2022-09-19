@@ -124,7 +124,7 @@ fun main() {
 
 ##### reified
 
-一般来说，泛型相关信息在运行会被擦除，reified作为*Kotlin*的一个方法泛型关键字,它代表你可以在方法体内访问泛型指定的JVM类对象。
+`reified`关键字是用于Kotlin内联函数的,修饰内联函数的泛型,泛型被修饰后,在方法体里,能从泛型拿到泛型的Class对象
 
 reified与inline结合使用，在kotlin中一个内联函数（inline）可以被具体化（reified），这意味着我们可以得到使用泛型类型的Class。所以具体实际类型在调用地方是已经知道的；
 
@@ -168,4 +168,8 @@ val user: User = Gson().fromJson(json)//会自动推导T为User
 val user = Gson().fromJson<User>(json)
 ```
 
-更多reified的用法，可参考 [推荐使用 Kotlin 关键字 Reified](https://www.wandouip.com/t5i245905/)
+更多reified的用法，可参考
+
+[Kotlin的独门秘籍Reified实化类型参数](https://youkmi.blog.csdn.net/article/details/83507076?spm=1001.2101.3001.6661.1&utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7ECTRLIST%7Edefault-1-83507076-blog-114261938.pc_relevant_multi_platform_whitelistv1_mlttest2&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7ECTRLIST%7Edefault-1-83507076-blog-114261938.pc_relevant_multi_platform_whitelistv1_mlttest2&utm_relevant_index=1) 
+
+[推荐使用 Kotlin 关键字 Reified](https://www.wandouip.com/t5i245905/) 

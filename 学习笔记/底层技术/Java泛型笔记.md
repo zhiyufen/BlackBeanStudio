@@ -118,7 +118,7 @@ class B<T extends Animal>
 ```java
 interface Eatable {void eat();}
 interface Drinkable {void drink();}
-class B<T extends Dog & Cat>
+class B<T extends Eatable & Drinkable>
 {
     T item;
     void test()
@@ -135,9 +135,11 @@ class B<T extends Dog & Cat>
 
 通配符，作用就是匹配多种类型； 一般使用是泛型实例化时，进行定义的；
 
+使用泛型类时，可使用该通配符进行指定；
+
 #### 上界通配符:  < ? extends B >
 
-也就是说可以匹配类型A及其所有子类，即类型的上界是B，无下界。
+也就是说可以匹配类型B及其所有子类，即类型的上界是B，无下界。
 
 有几个这样类：
 
@@ -217,6 +219,10 @@ Object object = myArrayList.get(0); // 取出来为Object类型，需要开发�
 
 下界通配符的副作用： 不影响往里存，但往外取只能放在Object对象里；
 
+#### 无边界通配符 <?>
+
+无边界的通配符的主要作用就是让泛型能够接受未知类型的数据. 
+
 ### \<T> VS  <?>
 
 - \<T>：泛型标识符，用于泛型定义（类、接口、方法等）时，可以想象成形参。
@@ -229,7 +235,12 @@ Object object = myArrayList.get(0); // 取出来为Object类型，需要开发�
 1. 频繁往外读取内容的，适合用上界Extends。
 2. 经常往里插入的，适合用下界Super。
 
+也可以这么理解：
 
+- in或者producer就是你要读取出数据以供随后使用(想象一下List的get), 这时使用extends关键字, 固定上边界的通配符. 你可以将该对象当做一个只读对象;
+- out或者consumer就是你要将已有的数据写入对象(想象一下List的add), 这时使用super关键字, 固定下边界的通配符. 你可以将该对象当做一个只能写入的对象;
+- 当你希望in或producer的数据能够使用Object类中的方法访问时, 使用无边界通配符;
+  当你需要一个既能读又能写的对象时, 就不要使用通配符了.
 
 本文笔记于：
 
