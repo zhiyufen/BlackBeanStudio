@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Android笔记之 Volley学习</title>
+<link rel="stylesheet" href="https://stackedit.io/res-min/themes/base.css" />
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body><div class="container"><h1 id="android笔记之-volley学习">Android笔记之 Volley学习</h1>
+
+<blockquote>
+  <p>本文转于 <a href="http://blog.csdn.net/guolin_blog/article/details/17482095">http://blog.csdn.net/guolin_blog/article/details/17482095</a>， 详细请阅读大神的原创博客。</p>
+</blockquote>
+
+
+
+<h2 id="初识volley的基本用法">初识Volley的基本用法</h2>
+
+
+
+<h3 id="1-volley简介">1, Volley简介</h3>
+
+<p>  我们平时在开发Android应用的时候不可避免地都需要用到网络技术，而多数情况下应用程序都会使用HTTP协议来发送和接收网络数据。Android系统中主要提供了两种方式来进行HTTP通信，HttpURLConnection和HttpClient，几乎在任何项目的代码中我们都能看到这两个类的身影，使用率非常高。 <br>
+  在2013年Google I/O大会上推出了一个新的网络通信框架——Volley。Volley可是说是把AsyncHttpClient和Universal-Image-Loader的优点集于了一身，既可以像AsyncHttpClient一样非常简单地进行HTTP通信，也可以像Universal-Image-Loader一样轻松加载网络上的图片。除了简单易用之外，Volley在性能方面也进行了大幅度的调整，它的设计目标就是非常适合去进行数据量不大，但通信频繁的网络操作，而对于大数据量的网络操作，比如说下载文件等，Volley的表现就会非常糟糕。</p>
+
+
+
+<h3 id="2-下载volley">2, 下载Volley</h3>
+
+<p>  使用Git工具下载 Volley 源码：</p>
+
+
+
+<pre class="prettyprint"><code class=" hljs ruby">git clone <span class="hljs-symbol">https:</span>/<span class="hljs-regexp">/android.googlesource.com/platform</span><span class="hljs-regexp">/frameworks/volley</span></code></pre>
+
+<p>连接上面Google账号，有些人的网络可能会出现 Time Out的问题，可使用下面 Git账号：</p>
+
+
+
+<pre class="prettyprint"><code class=" hljs php">git <span class="hljs-keyword">clone</span> https:<span class="hljs-comment">//github.com/mcxiaoke/android-volley</span></code></pre>
+
+<p>PS： 该android-volley编译成功还需要导入 org.apache.http.legacy.jar <br>
+步骤：</p>
+
+<ol>
+<li>下载 <a href="http://download.csdn.net/detail/yy1300326388/9144503">org.apache.http.legacy.jar</a></li>
+<li>放入项目的libs目录中</li>
+<li>在build.gradle文件的 android层次下面添加：useLibrary ‘org.apache.http.legacy’</li>
+</ol>
+
+<p>下载完后，Android Studio导入Module，配置相关的就可以了。如果你的电脑上没有Git，那么也可以直接使用大神导出好的jar包，下载地址是：<a href="http://download.csdn.net/detail/sinyu890807/7152015">http://download.csdn.net/detail/sinyu890807/7152015</a> 。</p>
+
+
+
+<h3 id="3-stringrequest的用法">3, StringRequest的用法</h3>
+
+<p>HTTP通信：发起一条HTTP请求，然后接收HTTP响应。主要就是进行了以下三步操作：</p>
+
+<ol>
+<li>创建一个RequestQueue对象。</li>
+<li>创建一个StringRequest对象。</li>
+<li>将StringRequest对象添加到RequestQueue里面。</li>
+</ol>
+
+
+
+<pre class="prettyprint"><code class=" hljs fix"><span class="hljs-attribute">//获取到一个RequestQueue对象
+RequestQueue mQueue </span>=<span class="hljs-string"> Volley.newRequestQueue(context);  </span></code></pre>
+
+<p>  RequestQueue是一个请求队列对象，它可以缓存所有的HTTP请求，然后按照一定的算法并发地发出这些请求。 <br>
+  RequestQueue内部的设计就是非常合适高并发的，因此我们不必为每一次HTTP请求都创建一个RequestQueue对象，这是非常浪费资源的，基本上在每一个需要和网络交互的Activity中创建一个RequestQueue对象就足够了。</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-comment">//创建一个StringRequest对象：</span>
+StringRequest stringRequest = <span class="hljs-keyword">new</span> StringRequest(<span class="hljs-string">"http://www.baidu.com"</span>,  
+                        <span class="hljs-keyword">new</span> Response.Listener&lt;String&gt;() {  
+                            <span class="hljs-annotation">@Override</span>  
+                            <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onResponse</span>(String response) {  
+                                Log.d(<span class="hljs-string">"TAG"</span>, response);  
+                            }  
+                        }, <span class="hljs-keyword">new</span> Response.ErrorListener() {  
+                            <span class="hljs-annotation">@Override</span>  
+                            <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onErrorResponse</span>(VolleyError error) {  
+                                Log.e(<span class="hljs-string">"TAG"</span>, error.getMessage(), error);  
+                            }  
+                        });  </code></pre>
+
+<p>  StringRequest的构造函数需要传入三个参数，第一个参数就是目标服务器的URL地址，第二个参数是服务器响应成功的回调，第三个参数是服务器响应失败的回调。其中，目标服务器地址我们填写的是百度的首页，然后在响应成功的回调里打印出服务器返回的内容，在响应失败的回调里打印出失败的详细信息。</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-comment">//将StringRequest对象添加到RequestQueue里面</span>
+mQueue.add(stringRequest);  </code></pre>
+
+<p>  另外，由于Volley是要访问网络的，因此不要忘记在你的AndroidManifest.xml中添加如下权限：</p>
+
+
+
+<pre class="prettyprint"><code class="language-xml hljs "><span class="hljs-tag">&lt;<span class="hljs-title">uses-permission</span> <span class="hljs-attribute">android:name</span>=<span class="hljs-value">"android.permission.INTERNET"</span> /&gt;</span>  </code></pre>
+
+<p>  好了，就是这么简单，如果你现在运行一下程序，并发出这样一条HTTP请求，就会看到LogCat中会打印出如下图所示的数据。 <br>
+<img src="http://img.blog.csdn.net/20160731230352368" alt="Image" title=""> <br>
+  没错，百度返回给我们的就是这样一长串的HTML代码，虽然我们看起来会有些吃力，但是浏览器却可以轻松地对这段HTML代码进行解析，然后将百度的首页展现出来。 <br>
+  HTTP的请求类型通常有两种，GET和POST，很遗憾，StringRequest中并没有提供设置POST参数的方法，但是当发出POST请求的时候，Volley会尝试调用StringRequest的父类——Request中的getParams()方法来获取POST参数，我们只需要在StringRequest的匿名类中重写getParams()方法，代码如下所示：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">StringRequest stringRequest = <span class="hljs-keyword">new</span> StringRequest(Method.POST, url,  listener, errorListener) {  
+    <span class="hljs-annotation">@Override</span>  
+    <span class="hljs-keyword">protected</span> Map&lt;String, String&gt; <span class="hljs-title">getParams</span>() <span class="hljs-keyword">throws</span> AuthFailureError {  
+        Map&lt;String, String&gt; map = <span class="hljs-keyword">new</span> HashMap&lt;String, String&gt;();  
+        map.put(<span class="hljs-string">"params1"</span>, <span class="hljs-string">"value1"</span>);  
+        map.put(<span class="hljs-string">"params2"</span>, <span class="hljs-string">"value2"</span>);  
+        <span class="hljs-keyword">return</span> map;  
+    }  
+}; </code></pre>
+
+
+
+<h3 id="4-jsonrequest的用法">4, JsonRequest的用法</h3>
+
+<p>  类似于StringRequest，JsonRequest也是继承自Request类的，不过由于JsonRequest是一个抽象类，因此我们无法直接创建它的实例，那么只能从它的子类入手了。JsonRequest有两个直接的子类，JsonObjectRequest和JsonArrayRequest，一个是用于请求一段JSON数据的，一个是用于请求一段JSON数组的。代码如下：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-comment">//URL为中国天气网提供的一个查询天气信息的接口</span>
+JsonObjectRequest jsonObjectRequest = <span class="hljs-keyword">new</span> JsonObjectRequest(<span class="hljs-string">"http://m.weather.com.cn/data/101010100.html"</span>, <span class="hljs-keyword">null</span>,  
+        <span class="hljs-keyword">new</span> Response.Listener&lt;JSONObject&gt;() {  
+            <span class="hljs-annotation">@Override</span>  
+            <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onResponse</span>(JSONObject response) {  
+                Log.d(<span class="hljs-string">"TAG"</span>, response.toString());  
+            }  
+        }, <span class="hljs-keyword">new</span> Response.ErrorListener() {  
+            <span class="hljs-annotation">@Override</span>  
+            <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onErrorResponse</span>(VolleyError error) {  
+                Log.e(<span class="hljs-string">"TAG"</span>, error.getMessage(), error);  
+            }  
+        }); 
+mQueue.add(jsonObjectRequest);  </code></pre>
+
+<p>返回结果如下： <br>
+<img src="http://img.blog.csdn.net/20160731232446894" alt="Image" title=""> <br>
+  JsonObjectRequest的用法和StringRequest的用法基本上是完全一样的。</p>
+
+
+
+<h2 id="使用volley加载网络图片">使用Volley加载网络图片</h2>
+
+<p>  Volley是将AsyncHttpClient和Universal-Image-Loader的优点集成于一身的一个框架。我们都知道，Universal-Image-Loader具备非常强大的加载网络图片的功能，而使用Volley，我们也可以实现基本类似的效果，并且在性能上也豪不逊色于Universal-Image-Loader。</p>
+
+
+
+<h3 id="1-imagerequest的用法">1, ImageRequest的用法</h3>
+
+<p>  ImageRequest也是继承自Request的，因此它的用法也是与StringRequest基本相同的：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">RequestQueue mQueue = Volley.newRequestQueue(context);  
+ImageRequest imageRequest = <span class="hljs-keyword">new</span> ImageRequest(  
+        <span class="hljs-string">"http://developer.android.com/images/home/aw_dac.png"</span>,  
+        <span class="hljs-keyword">new</span> Response.Listener&lt;Bitmap&gt;() {  
+            <span class="hljs-annotation">@Override</span>  
+            <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onResponse</span>(Bitmap response) {  
+                imageView.setImageBitmap(response);  
+            }  
+        }, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, Config.RGB_565, <span class="hljs-keyword">new</span> Response.ErrorListener() {  
+            <span class="hljs-annotation">@Override</span>  
+            <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onErrorResponse</span>(VolleyError error) {  
+                imageView.setImageResource(R.drawable.default_image);  
+            }  
+        }); 
+mQueue.add(imageRequest);  </code></pre>
+
+<p>  ImageRequest的构造函数接收六个参数，第一个参数就是图片的URL地址，这个没什么需要解释的。第二个参数是图片请求成功的回调，这里我们把返回的Bitmap参数设置到ImageView中。第三第四个参数分别用于指定允许图片最大的宽度和高度，如果指定的网络图片的宽度或高度大于这里的最大值，则会对图片进行压缩，指定成0的话就表示不管图片有多大，都不会进行压缩。第五个参数用于指定图片的颜色属性，Bitmap.Config下的几个常量都可以在这里使用，其中ARGB_8888可以展示最好的颜色属性，每个图片像素占据4个字节的大小，而RGB_565则表示每个图片像素占据2个字节大小。第六个参数是图片请求失败的回调，这里我们当请求失败时在ImageView中显示一张默认图片。</p>
+
+
+
+<h3 id="2-imageloader的用法">2, ImageLoader的用法</h3>
+
+<p>  ImageLoader也可以用于加载网络上的图片，并且它的内部也是使用ImageRequest来实现的，不过ImageLoader明显要比ImageRequest更加高效，因为它不仅可以帮我们对图片进行缓存，还可以过滤掉重复的链接，避免重复发送请求。总结起来大致可以分为以下四步：</p>
+
+<ol>
+<li>创建一个RequestQueue对象。</li>
+<li>创建一个ImageLoader对象。</li>
+<li>获取一个ImageListener对象。</li>
+<li>调用ImageLoader的get()方法加载网络上的图片。</li>
+</ol>
+
+<p>第1，2步代码如下：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">RequestQueue mQueue = Volley.newRequestQueue(context); 
+
+ImageLoader imageLoader = <span class="hljs-keyword">new</span> ImageLoader(mQueue, <span class="hljs-keyword">new</span> ImageCache() {  
+    <span class="hljs-annotation">@Override</span>  
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">putBitmap</span>(String url, Bitmap bitmap) {  
+    }    
+    <span class="hljs-annotation">@Override</span>  
+    <span class="hljs-keyword">public</span> Bitmap <span class="hljs-title">getBitmap</span>(String url) {  
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;  
+    }  
+}); </code></pre>
+
+<p>  ImageLoader的构造函数接收两个参数，第一个参数就是RequestQueue对象，第二个参数是一个ImageCache对象.这里我们先new出一个空的ImageCache的实现即可。</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-comment">//获取一个ImageListener对象</span>
+ImageListener listener = ImageLoader.getImageListener(imageView,  
+        R.drawable.default_image, R.drawable.failed_image);  </code></pre>
+
+<p>  我们通过调用ImageLoader的getImageListener()方法能够获取到一个ImageListener对象，getImageListener()方法接收三个参数，第一个参数指定用于显示图片的ImageView控件，第二个参数指定加载图片的过程中显示的图片，第三个参数指定加载图片失败的情况下显示的图片。</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-comment">//调用ImageLoader的get()方法来加载图片</span>
+imageLoader.get(<span class="hljs-string">"http://img.my.csdn.net/uploads/201404/13/1397393290_5765.jpeg"</span>, listener);  </code></pre>
+
+<p>  get()方法接收两个参数，第一个参数就是图片的URL地址，第二个参数则是刚刚获取到的ImageListener对象。当然，如果你想对图片的大小进行限制，也可以使用get()方法的重载，指定图片允许的最大宽度和高度，如下所示：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">imageLoader.get(<span class="hljs-string">"http://img.my.csdn.net/uploads/201404/13/1397393290_5765.jpeg"</span>, listener, <span class="hljs-number">200</span>, <span class="hljs-number">200</span>);  </code></pre>
+
+<p>  现在运行一下程序并开始加载图片，你将看到ImageView中会先显示一张默认的图片，等到网络上的图片加载完成后，ImageView则会自动显示该图，效果如下图所示。 <br>
+<img src="http://img.blog.csdn.net/20160731235558253" alt="Image" title=""> <br>
+  虽然现在我们已经掌握了ImageLoader的用法，但是刚才介绍的ImageLoader的优点却还没有使用到。为什么呢？因为这里创建的ImageCache对象是一个空的实现，完全没能起到图片缓存的作用。其实写一个ImageCache也非常简单，但是如果想要写一个性能非常好的ImageCache，最好就要借助Android提供的LruCache功能了，如果你对LruCache还不了解，可以参考我之前的一篇博客<a href="http://blog.csdn.net/guolin_blog/article/details/9316683">Android高效加载大图、多图解决方案，有效避免程序OOM</a>。 <br>
+  这里我们新建一个BitmapCache并实现了ImageCache接口，如下所示：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">BitmapCache</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">ImageCache</span> {</span>  
+
+    <span class="hljs-keyword">private</span> LruCache&lt;String, Bitmap&gt; mCache;  
+
+    <span class="hljs-keyword">public</span> <span class="hljs-title">BitmapCache</span>() {  
+        <span class="hljs-keyword">int</span> maxSize = <span class="hljs-number">10</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>;  
+        mCache = <span class="hljs-keyword">new</span> LruCache&lt;String, Bitmap&gt;(maxSize) {  
+            <span class="hljs-annotation">@Override</span>  
+            <span class="hljs-keyword">protected</span> <span class="hljs-keyword">int</span> <span class="hljs-title">sizeOf</span>(String key, Bitmap bitmap) {  
+                <span class="hljs-keyword">return</span> bitmap.getRowBytes() * bitmap.getHeight();  
+            }  
+        };  
+    }  
+
+    <span class="hljs-annotation">@Override</span>  
+    <span class="hljs-keyword">public</span> Bitmap <span class="hljs-title">getBitmap</span>(String url) {  
+        <span class="hljs-keyword">return</span> mCache.get(url);  
+    }  
+
+    <span class="hljs-annotation">@Override</span>  
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">putBitmap</span>(String url, Bitmap bitmap) {  
+        mCache.put(url, bitmap);  
+    }  
+
+} </code></pre>
+
+<p>  可以看到，这里我们将缓存图片的大小设置为10M。接着修改创建ImageLoader实例的代码，第二个参数传入BitmapCache的实例，如下所示：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">ImageLoader imageLoader = <span class="hljs-keyword">new</span> ImageLoader(mQueue, <span class="hljs-keyword">new</span> BitmapCache());  </code></pre>
+
+<p>  这样我们就把ImageLoader的功能优势充分利用起来了。 <br>
+PS: 关于<a href="http://www.bkjia.com/Androidjc/979126.html">LruCache</a>的使用和详解请参加： <a href="http://www.bkjia.com/Androidjc/979126.html">http://www.bkjia.com/Androidjc/979126.html</a></p>
+
+
+
+<h3 id="networkimageview的用法">NetworkImageView的用法</h3>
+
+<p>  除了以上两种方式之外，Volley还提供了第三种方式来加载网络图片，即使用NetworkImageView。不同于以上两种方式，NetworkImageView是一个自定义控制，它是继承自ImageView的，具备ImageView控件的所有功能，并且在原生的基础之上加入了加载网络图片的功能。NetworkImageView控件的用法要比前两种方式更加简单，大致可以分为以下五步：</p>
+
+<ol>
+<li>创建一个RequestQueue对象。</li>
+<li>创建一个ImageLoader对象。</li>
+<li>在布局文件中添加一个NetworkImageView控件。</li>
+<li>在代码中获取该控件的实例。</li>
+<li>设置要加载的图片地址。</li>
+</ol>
+
+<p>  其中，第一第二步和ImageLoader的用法是完全一样的，因此这里我们就从第三步开始学习了。首先修改布局文件中的代码，在里面加入NetworkImageView控件，如下所示：</p>
+
+
+
+<pre class="prettyprint"><code class="language-xml hljs "><span class="hljs-tag">&lt;<span class="hljs-title">LinearLayout</span> <span class="hljs-attribute">xmlns:android</span>=<span class="hljs-value">"http://schemas.android.com/apk/res/android"</span>  
+    <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"fill_parent"</span>  
+    <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"fill_parent"</span>  
+    <span class="hljs-attribute">android:orientation</span>=<span class="hljs-value">"vertical"</span> &gt;</span>  
+
+    <span class="hljs-tag">&lt;<span class="hljs-title">Button</span>  
+        <span class="hljs-attribute">android:id</span>=<span class="hljs-value">"@+id/button"</span>  
+        <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"wrap_content"</span>  
+        <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"wrap_content"</span>  
+        <span class="hljs-attribute">android:text</span>=<span class="hljs-value">"Send Request"</span> /&gt;</span>  
+
+    <span class="hljs-tag">&lt;<span class="hljs-title">com.android.volley.toolbox.NetworkImageView</span>   
+        <span class="hljs-attribute">android:id</span>=<span class="hljs-value">"@+id/network_image_view"</span>  
+        <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"200dp"</span>  
+        <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"200dp"</span>  
+        <span class="hljs-attribute">android:layout_gravity</span>=<span class="hljs-value">"center_horizontal"</span>  
+        /&gt;</span>  
+
+<span class="hljs-tag">&lt;/<span class="hljs-title">LinearLayout</span>&gt;</span>  </code></pre>
+
+<p>  接着在Activity获取到这个控件的实例，这就非常简单了，代码如下所示：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">networkImageView = (NetworkImageView) findViewById(R.id.network_image_view);  </code></pre>
+
+<p>  得到了NetworkImageView控件的实例之后，我们可以调用它的setDefaultImageResId()方法、setErrorImageResId()方法和setImageUrl()方法来分别设置加载中显示的图片，加载失败时显示的图片，以及目标图片的URL地址，如下所示：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">networkImageView.setDefaultImageResId(R.drawable.default_image);  
+networkImageView.setErrorImageResId(R.drawable.failed_image);  
+networkImageView.setImageUrl(<span class="hljs-string">"http://img.my.csdn.net/uploads/201404/13/1397393290_5765.jpeg"</span>,  
+                imageLoader);  </code></pre>
+
+<p>  其中，setImageUrl()方法接收两个参数，第一个参数用于指定图片的URL地址，第二个参数则是前面创建好的ImageLoader对象。 <br>
+好了，就是这么简单，现在重新运行一下程序，你将看到和使用ImageLoader来加载图片一模一样的效果，这里我就不再截图了。 <br>
+这时有的朋友可能就会问了，使用ImageRequest和ImageLoader这两种方式来加载网络图片，都可以传入一个最大宽度和高度的参数来对图片进行压缩，而NetworkImageView中则完全没有提供设置最大宽度和高度的方法，那么是不是使用NetworkImageView来加载的图片都不会进行压缩呢？ <br>
+  其实并不是这样的，NetworkImageView并不需要提供任何设置最大宽高的方法也能够对加载的图片进行压缩。这是由于NetworkImageView是一个控件，在加载图片的时候它会自动获取自身的宽高，然后对比网络图片的宽度，再决定是否需要对图片进行压缩。也就是说，压缩过程是在内部完全自动化的，并不需要我们关心，NetworkImageView会始终呈现给我们一张大小刚刚好的网络图片，不会多占用任何一点内存，这也是NetworkImageView最简单好用的一点吧。 <br>
+  当然了，如果你不想对图片进行压缩的话，其实也很简单，只需要在布局文件中把NetworkImageView的layout_width和layout_height都设置成wrap_content就可以了，这样NetworkImageView就会将该图片的原始大小展示出来，不会进行任何压缩。</p>
+
+
+
+<h2 id="定制自己的request">定制自己的Request</h2>
+
+<p>  经过前面两篇文章的学习，我们已经掌握了Volley各种Request的使用方法，包括StringRequest、JsonRequest、ImageRequest等。其中StringRequest用于请求一条普通的文本数据，JsonRequest(JsonObjectRequest、JsonArrayRequest)用于请求一条JSON格式的数据，ImageRequest则是用于请求网络上的一张图片。 <br>
+  可是Volley提供给我们的Request类型就只有这么多，而我们都知道，在网络上传输的数据通常有两种格式，JSON和XML，那么如果想要请求一条XML格式的数据该怎么办呢？其实很简单，Volley提供了非常强的扩展机制，使得我们可以很轻松地定制出任意类型的Request，这也就是本篇文章的主题了。</p>
+
+
+
+<h3 id="1自定义xmlrequest">1，自定义XMLRequest</h3>
+
+<p>  下面我们准备自定义一个XMLRequest，用于请求一条XML格式的数据。那么该从哪里开始入手呢？额，好像是有些无从下手。遇到这种情况，我们应该去参考一下Volley的源码，看一看StringRequest是怎么实现的，然后就可以模仿着写出XMLRequest了。首先看下StringRequest的源码，如下所示：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-javadoc">/**
+ * A canned request for retrieving the response body at a given URL as a String.
+ */</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">StringRequest</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Request</span>&lt;<span class="hljs-title">String</span>&gt; {</span>
+    <span class="hljs-keyword">private</span> Listener&lt;String&gt; mListener;
+
+    <span class="hljs-javadoc">/**
+     * Creates a new request with the given method.
+     *
+     *<span class="hljs-javadoctag"> @param</span> method the request {@link Method} to use
+     *<span class="hljs-javadoctag"> @param</span> url URL to fetch the string at
+     *<span class="hljs-javadoctag"> @param</span> listener Listener to receive the String response
+     *<span class="hljs-javadoctag"> @param</span> errorListener Error listener, or null to ignore errors
+     */</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-title">StringRequest</span>(<span class="hljs-keyword">int</span> method, String url, Listener&lt;String&gt; listener,
+            ErrorListener errorListener) {
+        <span class="hljs-keyword">super</span>(method, url, errorListener);
+        mListener = listener;
+    }
+
+    <span class="hljs-javadoc">/**
+     * Creates a new GET request.
+     *
+     *<span class="hljs-javadoctag"> @param</span> url URL to fetch the string at
+     *<span class="hljs-javadoctag"> @param</span> listener Listener to receive the String response
+     *<span class="hljs-javadoctag"> @param</span> errorListener Error listener, or null to ignore errors
+     */</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-title">StringRequest</span>(String url, Listener&lt;String&gt; listener, ErrorListener errorListener) {
+        <span class="hljs-keyword">this</span>(Method.GET, url, listener, errorListener);
+    }
+
+    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">protected</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onFinish</span>() {
+        <span class="hljs-keyword">super</span>.onFinish();
+        mListener = <span class="hljs-keyword">null</span>;
+    }
+
+    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">protected</span> <span class="hljs-keyword">void</span> <span class="hljs-title">deliverResponse</span>(String response) {
+        <span class="hljs-keyword">if</span> (mListener != <span class="hljs-keyword">null</span>) {
+            mListener.onResponse(response);
+        }
+    }
+
+    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">protected</span> Response&lt;String&gt; <span class="hljs-title">parseNetworkResponse</span>(NetworkResponse response) {
+        String parsed;
+        <span class="hljs-keyword">try</span> {
+            parsed = <span class="hljs-keyword">new</span> String(response.data, HttpHeaderParser.parseCharset(response.headers));
+        } <span class="hljs-keyword">catch</span> (UnsupportedEncodingException e) {
+            parsed = <span class="hljs-keyword">new</span> String(response.data);
+        }
+        <span class="hljs-keyword">return</span> Response.success(parsed, HttpHeaderParser.parseCacheHeaders(response));
+    }
+}</code></pre>
+
+<p>  可以看到，StringRequest的源码很简练，根本就没几行代码，我们一起来分析下。首先StringRequest是继承自Request类的，Request可以指定一个泛型类，这里指定的当然就是String了，接下来StringRequest中提供了两个有参的构造函数，参数包括请求类型，请求地址，以及响应回调等，由于我们已经很熟悉StringRequest的用法了，相信这几个参数的作用都不用再解释了吧。但需要注意的是，在构造函数中一定要调用super()方法将这几个参数传给父类，因为HTTP的请求和响应都是在父类中自动处理的。 <br>
+  另外，由于Request类中的deliverResponse()和parseNetworkResponse()是两个抽象方法，因此StringRequest中需要对这两个方法进行实现。deliverResponse()方法中的实现很简单，仅仅是调用了mListener中的onResponse()方法，并将response内容传入即可，这样就可以将服务器响应的数据进行回调了。parseNetworkResponse()方法中则应该对服务器响应的数据进行解析，其中数据是以字节的形式存放在NetworkResponse的data变量中的，这里将数据取出然后组装成一个String，并传入Response的success()方法中即可。 <br>
+  了解了StringRequest的实现原理，下面我们就可以动手来尝试实现一下XMLRequest了，代码如下所示：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">XMLRequest</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Request</span>&lt;<span class="hljs-title">XmlPullParser</span>&gt; {</span>  
+
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> Listener&lt;XmlPullParser&gt; mListener;  
+
+    <span class="hljs-keyword">public</span> <span class="hljs-title">XMLRequest</span>(<span class="hljs-keyword">int</span> method, String url, Listener&lt;XmlPullParser&gt; listener,  
+            ErrorListener errorListener) {  
+        <span class="hljs-keyword">super</span>(method, url, errorListener);  
+        mListener = listener;  
+    }  
+
+    <span class="hljs-keyword">public</span> <span class="hljs-title">XMLRequest</span>(String url, Listener&lt;XmlPullParser&gt; listener, ErrorListener errorListener) {  
+        <span class="hljs-keyword">this</span>(Method.GET, url, listener, errorListener);  
+    }  
+
+    <span class="hljs-annotation">@Override</span>  
+    <span class="hljs-keyword">protected</span> Response&lt;XmlPullParser&gt; <span class="hljs-title">parseNetworkResponse</span>(NetworkResponse response) {  
+        <span class="hljs-keyword">try</span> {  
+            String xmlString = <span class="hljs-keyword">new</span> String(response.data,  
+                    HttpHeaderParser.parseCharset(response.headers));  
+            XmlPullParserFactory factory = XmlPullParserFactory.newInstance();  
+            XmlPullParser xmlPullParser = factory.newPullParser();  
+            xmlPullParser.setInput(<span class="hljs-keyword">new</span> StringReader(xmlString));  
+            <span class="hljs-keyword">return</span> Response.success(xmlPullParser, HttpHeaderParser.parseCacheHeaders(response));  
+        } <span class="hljs-keyword">catch</span> (UnsupportedEncodingException e) {  
+            <span class="hljs-keyword">return</span> Response.error(<span class="hljs-keyword">new</span> ParseError(e));  
+        } <span class="hljs-keyword">catch</span> (XmlPullParserException e) {  
+            <span class="hljs-keyword">return</span> Response.error(<span class="hljs-keyword">new</span> ParseError(e));  
+        }  
+    }  
+
+    <span class="hljs-annotation">@Override</span>  
+    <span class="hljs-keyword">protected</span> <span class="hljs-keyword">void</span> <span class="hljs-title">deliverResponse</span>(XmlPullParser response) {  
+        mListener.onResponse(response);  
+    }
+
+    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">protected</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onFinish</span>() {
+        <span class="hljs-keyword">super</span>.onFinish();
+        mListener = <span class="hljs-keyword">null</span>;
+    }
+
+}  </code></pre>
+
+<p>   <br>
+   <br>
+   <br>
+  </p></div></body>
+</html>

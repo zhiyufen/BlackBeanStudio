@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Android笔记之AndroidStudio调试</title>
+<link rel="stylesheet" href="https://stackedit.io/res-min/themes/base.css" />
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body><div class="container"><h1 id="android笔记之androidstudio调试">Android笔记之AndroidStudio调试</h1>
+
+
+
+<h3 id="使用android-studio调试">使用Android Studio调试</h3>
+
+<h4 id="1-设置断点">1， 设置断点</h4>
+
+<p>在需要打断点的代码行的左侧进行鼠标左单击。 <br>
+<img src="http://img.blog.csdn.net/20160612103746247" alt="设置断点" title=""></p>
+
+
+
+<h4 id="2-启动debugg界面">2， 启动Debugg界面</h4>
+
+<p><img src="http://img.blog.csdn.net/20160612104412677" alt="Image" title=""></p>
+
+<p>点击后会进行编译、安装，然后启动Debugging界面： <br>
+<img src="http://img.blog.csdn.net/20160612114102126" alt="Debugging界面" title=""></p>
+
+<p>已安装调试应用程序，可直接选择应用进程进行调试： <br>
+<img src="http://img.blog.csdn.net/20160612134102065" alt="Image" title=""></p>
+
+<p><img src="http://img.blog.csdn.net/20160612134117862" alt="Image" title=""> <br>
+在手机点击运行learnapplication应用程序，运行断点处时会自动进行暂停。</p>
+
+
+
+<h3 id="android-studio调试">Android Studio调试</h3>
+
+<h4 id="1evaluation-expression">1，Evaluation Expression</h4>
+
+<p>  一个实用功能，可进入与当前断点处环境中的交互模式（REPL）： 通过执行一个自我定义的代码块来获取需要的值： <br>
+例子： <br>
+进行到当前断点： <br>
+<img src="http://img.blog.csdn.net/20160612135428551" alt="Image" title=""></p>
+
+<p>可通过运行代码块来看看运行某方法的值是如何的： <br>
+<img src="http://img.blog.csdn.net/20160612135538536" alt="Image" title=""></p>
+
+<h4 id="2-条件断点">2， 条件断点</h4>
+
+<p>  当你只在满足某些条件下时才需要断点，就可能使用这个； <br>
+  使用方法：在你的断点上鼠标右键会出现一个小窗口，写上条件即可。 <br>
+<img src="http://img.blog.csdn.net/20160612140955541" alt="Image" title=""></p>
+
+<h4 id="3-日志断点">3, 日志断点</h4>
+
+<p>  日志断点并不会打断当前运行，只是打印当前环境某些变量的Log（但不需要在代码中添加打印Log），这样就可以防止重新编译APK等流程。 <br>
+  使用方法：在你的断点上鼠标右键会出现一个小窗口，Disable掉Suspend选项，这样就显示下面的界面，然后填写需要打印的信息。 <br>
+<img src="http://img.blog.csdn.net/20160612142451639" alt="Image" title=""></p>
+
+<p>输出结果： <br>
+<img src="http://img.blog.csdn.net/20160612142514703" alt="Image" title=""></p>
+
+<h4 id="4-方法断点">4, 方法断点</h4>
+
+<p>  当你在一个方法行打上断点时，除了会在运行到当前方法会进行断点，在方法退回时，也会进行断点，这样我们就可以查看方法传入参数和最后的运行结果。 <br>
+<img src="http://img.blog.csdn.net/20160612143200815" alt="Image" title=""></p>
+
+<h4 id="5-异常断点">5, 异常断点</h4>
+
+<p>  当前调试应用发生异常时，Android Studio能进行断点处理，这个就有更多信息进行分析程序当前各变量的情况。 <br>
+  使用方法：  Run -&gt; View BreakPoints 或者使用快捷键打开断点设置窗口。 <br>
+<img src="http://img.blog.csdn.net/20160612144345132" alt="Image" title=""></p>
+
+<p><img src="http://img.blog.csdn.net/20160612144545103" alt="Image" title=""></p></div></body>
+</html>

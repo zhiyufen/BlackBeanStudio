@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Android笔记之ViewPage</title>
+<link rel="stylesheet" href="https://stackedit.io/res-min/themes/base.css" />
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body><div class="container"><h1 id="android笔记之viewpage">Android笔记之ViewPage</h1>
+
+<p>  ViewPage的功能是实现几个页面之间快速切换。</p>
+
+
+
+<h4 id="简单demo">简单Demo</h4>
+
+<ol>
+<li><p>在Activity的布局中添加 ViewPage 组件。</p>
+
+<pre class="prettyprint"><code class="language-xml hljs "><span class="hljs-comment">&lt;!--view_page_main_layout.xml--&gt;</span>
+<span class="hljs-pi">&lt;?xml version="1.0" encoding="utf-8"?&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-title">LinearLayout</span> <span class="hljs-attribute">xmlns:android</span>=<span class="hljs-value">"http://schemas.android.com/apk/res/android"</span>
+<span class="hljs-attribute">android:orientation</span>=<span class="hljs-value">"vertical"</span> <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"match_parent"</span>
+<span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"match_parent"</span>&gt;</span>
+
+<span class="hljs-tag">&lt;<span class="hljs-title">android.support.v4.view.ViewPager
+</span>    <span class="hljs-attribute">android:id</span>=<span class="hljs-value">"@+id/my_view_page"</span>
+    <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"wrap_content"</span>
+    <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"wrap_content"</span> /&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-title">LinearLayout</span>&gt;</span></code></pre></li>
+<li>利用xml布局文件创建三个ViewPage: view_page_layout1，view_page_layout２，view_page_layout３</li>
+</ol>
+
+
+
+<pre class="prettyprint"><code class="language-xml hljs "><span class="hljs-comment">&lt;!---view_page_layout1.xml--&gt;</span>
+<span class="hljs-pi">&lt;?xml version="1.0" encoding="utf-8"?&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-title">LinearLayout</span> <span class="hljs-attribute">xmlns:android</span>=<span class="hljs-value">"http://schemas.android.com/apk/res/android"</span>
+    <span class="hljs-attribute">android:orientation</span>=<span class="hljs-value">"vertical"</span> <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"match_parent"</span>
+    <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"match_parent"</span>
+    <span class="hljs-attribute">android:background</span>=<span class="hljs-value">"#78ff56"</span>  &gt;</span>
+
+    <span class="hljs-tag">&lt;<span class="hljs-title">TextView
+</span>        <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"wrap_content"</span>
+        <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"wrap_content"</span>
+        <span class="hljs-attribute">android:background</span>=<span class="hljs-value">"#457312"</span>
+        <span class="hljs-attribute">android:text</span>=<span class="hljs-value">"View Page 1"</span>
+        <span class="hljs-attribute">android:layout_gravity</span>=<span class="hljs-value">"center"</span> /&gt;</span>
+
+<span class="hljs-tag">&lt;/<span class="hljs-title">LinearLayout</span>&gt;</span>
+<span class="hljs-comment">&lt;!--其它2个Layout类似，只是更改一下背景颜色和Text显示--&gt;</span></code></pre>
+
+<ol>
+<li><p>创建 ViewPage的内容适配器并给予ViewPage</p>
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-comment">//ViewPageActivity.java</span>
+<span class="hljs-javadoc">/**
+* Created by Yufen Zhi on 2016/6/21.
+*/</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ViewPageActivity</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Activity</span>{</span>
+<span class="hljs-keyword">private</span> ViewPager mViewPage;
+<span class="hljs-keyword">private</span> PagerAdapter mAdapter;
+
+<span class="hljs-keyword">private</span> ArrayList&lt;View&gt; mList;
+<span class="hljs-keyword">private</span> View view1, view2, view3;
+
+<span class="hljs-annotation">@Override</span>
+<span class="hljs-keyword">protected</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onCreate</span>(Bundle savedInstanceState) {
+    <span class="hljs-keyword">super</span>.onCreate(savedInstanceState);
+    requestWindowFeature(Window.FEATURE_NO_TITLE);
+    getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN);
+    setContentView(R.layout.view_page_main_layout);
+
+    mViewPage = (ViewPager)findViewById(R.id.my_view_page);
+    LayoutInflater inflater = getLayoutInflater();
+    view1 = inflater.inflate(R.layout.view_page_layout1, <span class="hljs-keyword">null</span>);
+    view2 = inflater.inflate(R.layout.view_page_layout2, <span class="hljs-keyword">null</span>);
+    view3 = inflater.inflate(R.layout.view_page_layout3, <span class="hljs-keyword">null</span>);
+
+
+    <span class="hljs-comment">//创建5个不同颜色的View并放入数组中</span>
+    mList = <span class="hljs-keyword">new</span> ArrayList&lt;View&gt;();
+    mList.add(view1);
+    mList.add(view2);
+    mList.add(view3);
+
+    <span class="hljs-comment">//创建ViewPage适配器</span>
+    mAdapter = <span class="hljs-keyword">new</span> PagerAdapter() {
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">int</span> <span class="hljs-title">getCount</span>() {
+            <span class="hljs-keyword">return</span> mList.size();
+        }
+
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">boolean</span> <span class="hljs-title">isViewFromObject</span>(View view, Object object) {
+            <span class="hljs-keyword">return</span> view == mList.get((<span class="hljs-keyword">int</span>)Integer.parseInt(object.toString()));
+        }
+
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> Object <span class="hljs-title">instantiateItem</span>(ViewGroup container, <span class="hljs-keyword">int</span> position) {
+            container.addView(mList.get(position));
+            <span class="hljs-keyword">return</span> position;
+        }
+
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">destroyItem</span>(ViewGroup container, <span class="hljs-keyword">int</span> position, Object object) {
+            container.removeView(mList.get(position));
+        }
+    };
+    mViewPage.setAdapter(mAdapter);
+}
+}</code></pre>
+
+<p>  从上面Demo看出只需要适配相应的内容给ViewPage就可以了，相应的操作（滑动等），Viewpage里面已经处理好。</p></li>
+</ol>
+
+
+
+<h3 id="pageadapter">PageAdapter</h3>
+
+<p>  下面介绍一下 PagerAdapter需要重写的四大方法:</p>
+
+<ol>
+<li>public abstract int getCount ()  <br>
+返回当前有效视图的数量</li>
+<li>public void destroyItem (ViewGroup container, int position, Object object)</li>
+</ol>
+
+
+
+<pre class="prettyprint"><code class=" hljs vbnet"> Parameters:
+container   The containing View <span class="hljs-keyword">from</span> which the page will be removed.
+position    The page position <span class="hljs-keyword">to</span> be removed.
+<span class="hljs-built_in">object</span>  The same <span class="hljs-built_in">object</span> that was returned <span class="hljs-keyword">by</span> instantiateItem(View, int).</code></pre>
+
+<p>实现的功能是移除一个给定位置的页面。适配器有责任从容器中删除这个视图。 <br>
+ 3. public Object instantiateItem (ViewGroup container, int position) <br>
+ 实现的功能是创建 position 对应的View，并将其添加于 container中， 返回的为添加于 container中View对应的Key.</p>
+
+<ol>
+<li><p>isViewFromObject (View view, Object object) <br>
+该函数用来判断instantiateItem(ViewGroup, int)函数所返回来的Key与一个页面视图是否是代表的同一个视图(即它俩是否是对应的，对应的表示同一个View)，传入参数Object为Key. <br>
+如上面Demo中，在instantiateItem方法中返回的为 position 作为View对应的Key,那在 isViewFromObject()方法中，就要根据 object(实现为 position)来找到对应的View。</p>
+
+<pre class="prettyprint"><code class="language-java hljs ">         <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">boolean</span> <span class="hljs-title">isViewFromObject</span>(View view, Object object) {
+            <span class="hljs-keyword">return</span> view == mList.get((<span class="hljs-keyword">int</span>)Integer.parseInt(object.toString()));
+        }
+
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> Object <span class="hljs-title">instantiateItem</span>(ViewGroup container, <span class="hljs-keyword">int</span> position) {
+            container.addView(mList.get(position));
+            <span class="hljs-keyword">return</span> position;
+        }</code></pre></li>
+</ol>
+
+
+
+<h3 id="viewpage-与-fragment组合使用">ViewPage 与 Fragment组合使用</h3>
+
+<p>  对于实际开发来说，仅仅使用ViewPage无法快速地完成我们效果，而 ViewPage + Fragment的使用才能让更快速进行开发相关功能。 <br>
+  ViewPager使用PagerAdapter适配器，而我们这里要用到Fragment,就需要用到对应的 FragmentPagerAdapter ，FragmentPagerAdapter 是继续于PagerAdapter，但它只需要实现2个方法： getItem(int) and getCount()。</p>
+
+<p>下面我们以Android官网的例子进行说明：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">    <span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyAdapter</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">FragmentPagerAdapter</span> {</span>
+        <span class="hljs-comment">//也可以在这里传入Fragment对象</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-title">MyAdapter</span>(FragmentManager fm) {
+            <span class="hljs-keyword">super</span>(fm);
+        }
+        <span class="hljs-comment">//返回page的页数</span>
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">int</span> <span class="hljs-title">getCount</span>() {
+            <span class="hljs-keyword">return</span> NUM_ITEMS;<span class="hljs-comment">//10</span>
+        }
+        <span class="hljs-comment">//返回posotion对应的Fragment对象</span>
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> Fragment <span class="hljs-title">getItem</span>(<span class="hljs-keyword">int</span> position) {
+            <span class="hljs-keyword">return</span> ArrayListFragment.newInstance(position);
+        }
+    }</code></pre>
+
+<p>getItem()方法返回的是ArrayListFragment.newInstance(position);那这个又是如何创建 Fragment对象的。</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">    <span class="hljs-comment">//FragmentPagerSupport.java</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ArrayListFragment</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">ListFragment</span> {</span>
+        <span class="hljs-keyword">int</span> mNum;
+        <span class="hljs-javadoc">/**
+         * Create a new instance of CountingFragment, providing "num"
+         * as an argument.
+         */</span>
+        <span class="hljs-keyword">static</span> ArrayListFragment newInstance(<span class="hljs-keyword">int</span> num) {
+            ArrayListFragment f = <span class="hljs-keyword">new</span> ArrayListFragment();
+            <span class="hljs-comment">// Supply num input as an argument.</span>
+            Bundle args = <span class="hljs-keyword">new</span> Bundle();
+            args.putInt(<span class="hljs-string">"num"</span>, num);
+            f.setArguments(args);
+            <span class="hljs-keyword">return</span> f;
+        }
+        <span class="hljs-javadoc">/**
+         * When creating, retrieve this instance's number from its arguments.
+         */</span>
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onCreate</span>(Bundle savedInstanceState) {
+            <span class="hljs-keyword">super</span>.onCreate(savedInstanceState);
+            mNum = getArguments() != <span class="hljs-keyword">null</span> ? getArguments().getInt(<span class="hljs-string">"num"</span>) : <span class="hljs-number">1</span>;
+        }
+        <span class="hljs-javadoc">/**
+         * The Fragment's UI is just a simple text view showing its
+         * instance number.
+         */</span>
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> View <span class="hljs-title">onCreateView</span>(LayoutInflater inflater, ViewGroup container,
+                Bundle savedInstanceState) {
+            View v = inflater.inflate(R.layout.fragment_pager_list, container, <span class="hljs-keyword">false</span>);
+            View tv = v.findViewById(R.id.text);
+            ((TextView)tv).setText(<span class="hljs-string">"Fragment #"</span> + mNum);
+            <span class="hljs-keyword">return</span> v;
+        }
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onActivityCreated</span>(Bundle savedInstanceState) {
+            <span class="hljs-keyword">super</span>.onActivityCreated(savedInstanceState);
+            setListAdapter(<span class="hljs-keyword">new</span> ArrayAdapter&lt;String&gt;(getActivity(),
+                    android.R.layout.simple_list_item_1, Cheeses.sCheeseStrings));
+        }
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onListItemClick</span>(ListView l, View v, <span class="hljs-keyword">int</span> position, <span class="hljs-keyword">long</span> id) {
+            Log.i(<span class="hljs-string">"FragmentList"</span>, <span class="hljs-string">"Item clicked: "</span> + id);
+        }
+    }</code></pre>
+
+
+
+<pre class="prettyprint"><code class="language-xml hljs "><span class="hljs-comment">&lt;!--fragment_pager.xml--&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-title">LinearLayout</span> <span class="hljs-attribute">xmlns:android</span>=<span class="hljs-value">"http://schemas.android.com/apk/res/android"</span>
+    <span class="hljs-attribute">android:orientation</span>=<span class="hljs-value">"vertical"</span> <span class="hljs-attribute">android:padding</span>=<span class="hljs-value">"4dip"</span>
+    <span class="hljs-attribute">android:gravity</span>=<span class="hljs-value">"center_horizontal"</span>
+    <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"match_parent"</span> <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"match_parent"</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">android.support.v4.view.ViewPager
+</span>        <span class="hljs-attribute">android:id</span>=<span class="hljs-value">"@+id/pager"</span>
+        <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"match_parent"</span>
+        <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"0px"</span>
+        <span class="hljs-attribute">android:layout_weight</span>=<span class="hljs-value">"1"</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-title">android.support.v4.view.ViewPager</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">LinearLayout</span> <span class="hljs-attribute">android:orientation</span>=<span class="hljs-value">"horizontal"</span>
+        <span class="hljs-attribute">android:gravity</span>=<span class="hljs-value">"center"</span> <span class="hljs-attribute">android:measureWithLargestChild</span>=<span class="hljs-value">"true"</span>
+        <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"match_parent"</span> <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"wrap_content"</span>
+        <span class="hljs-attribute">android:layout_weight</span>=<span class="hljs-value">"0"</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-title">Button</span> <span class="hljs-attribute">android:id</span>=<span class="hljs-value">"@+id/goto_first"</span>
+            <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"wrap_content"</span> <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"wrap_content"</span>
+            <span class="hljs-attribute">android:text</span>=<span class="hljs-value">"Frist"</span>&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-title">Button</span>&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-title">Button</span> <span class="hljs-attribute">android:id</span>=<span class="hljs-value">"@+id/goto_last"</span>
+            <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"wrap_content"</span> <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"wrap_content"</span>
+            <span class="hljs-attribute">android:text</span>=<span class="hljs-value">"Last"</span>&gt;</span>
+        <span class="hljs-tag">&lt;/<span class="hljs-title">Button</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-title">LinearLayout</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-title">LinearLayout</span>&gt;</span></code></pre>
+
+<p>ArrayListFragment 例子更多涉及Fragment的使用，请参考  <a href="empty">Android笔记之Fragment</a>.</p>
+
+<p>下面给出Activity部分:</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">FragmentPagerSupport</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">FragmentActivity</span> {</span>
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">final</span> <span class="hljs-keyword">int</span> NUM_ITEMS = <span class="hljs-number">10</span>;
+    MyAdapter mAdapter;
+    ViewPager mPager;
+    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">protected</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onCreate</span>(Bundle savedInstanceState) {
+        <span class="hljs-keyword">super</span>.onCreate(savedInstanceState);
+        setContentView(R.layout.fragment_pager);
+        mAdapter = <span class="hljs-keyword">new</span> MyAdapter(getSupportFragmentManager());
+        mPager = (ViewPager)findViewById(R.id.pager);
+        mPager.setAdapter(mAdapter);
+        <span class="hljs-comment">// Watch for button clicks.</span>
+        Button button = (Button)findViewById(R.id.goto_first);
+        button.setOnClickListener(<span class="hljs-keyword">new</span> OnClickListener() {
+            <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onClick</span>(View v) {
+                mPager.setCurrentItem(<span class="hljs-number">0</span>);<span class="hljs-comment">//设置显示哪个页面</span>
+            }
+        });
+        button = (Button)findViewById(R.id.goto_last);
+        button.setOnClickListener(<span class="hljs-keyword">new</span> OnClickListener() {
+            <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onClick</span>(View v) {
+                mPager.setCurrentItem(NUM_ITEMS-<span class="hljs-number">1</span>);
+            }
+        });
+    }
+}</code></pre>
+
+
+
+<pre class="prettyprint"><code class="language-xml hljs "><span class="hljs-tag">&lt;<span class="hljs-title">LinearLayout</span> <span class="hljs-attribute">xmlns:android</span>=<span class="hljs-value">"http://schemas.android.com/apk/res/android"</span>
+    <span class="hljs-attribute">android:orientation</span>=<span class="hljs-value">"vertical"</span>
+    <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"match_parent"</span>
+    <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"match_parent"</span>
+    <span class="hljs-attribute">android:background</span>=<span class="hljs-value">"@android:drawable/gallery_thumb"</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">TextView</span> <span class="hljs-attribute">android:id</span>=<span class="hljs-value">"@+id/text"</span>
+        <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"match_parent"</span> <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"wrap_content"</span>
+        <span class="hljs-attribute">android:gravity</span>=<span class="hljs-value">"center_vertical|center_horizontal"</span>
+        <span class="hljs-attribute">android:textAppearance</span>=<span class="hljs-value">"?android:attr/textAppearanceMedium"</span>
+        <span class="hljs-attribute">android:text</span>=<span class="hljs-value">"@string/hello_world"</span>/&gt;</span>
+    <span class="hljs-comment">&lt;!-- The frame layout is here since we will be showing either
+    the empty view or the list view.  --&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">FrameLayout
+</span>        <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"match_parent"</span>
+        <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"0dip"</span>
+        <span class="hljs-attribute">android:layout_weight</span>=<span class="hljs-value">"1"</span> &gt;</span>
+        <span class="hljs-comment">&lt;!-- Here is the list. Since we are using a ListActivity, we
+             have to call it "@android:id/list" so ListActivity will
+             find it --&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-title">ListView</span> <span class="hljs-attribute">android:id</span>=<span class="hljs-value">"@android:id/list"</span>
+            <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"match_parent"</span>
+            <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"match_parent"</span>
+            <span class="hljs-attribute">android:drawSelectorOnTop</span>=<span class="hljs-value">"false"</span>/&gt;</span>
+        <span class="hljs-comment">&lt;!-- Here is the view to show if the list is emtpy --&gt;</span>
+        <span class="hljs-tag">&lt;<span class="hljs-title">TextView</span> <span class="hljs-attribute">android:id</span>=<span class="hljs-value">"@android:id/empty"</span>
+            <span class="hljs-attribute">android:layout_width</span>=<span class="hljs-value">"match_parent"</span>
+            <span class="hljs-attribute">android:layout_height</span>=<span class="hljs-value">"match_parent"</span>
+            <span class="hljs-attribute">android:textAppearance</span>=<span class="hljs-value">"?android:attr/textAppearanceMedium"</span>
+            <span class="hljs-attribute">android:text</span>=<span class="hljs-value">"No items."</span>/&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-title">FrameLayout</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-title">LinearLayout</span>&gt;</span></code></pre>
+
+<p>另外 这里导入的包是v4的，</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-keyword">import</span> android.support.v4.app.Fragment;
+<span class="hljs-keyword">import</span> android.support.v4.app.FragmentActivity;
+<span class="hljs-keyword">import</span> android.support.v4.app.FragmentManager;
+<span class="hljs-keyword">import</span> android.support.v4.app.FragmentPagerAdapter;
+<span class="hljs-keyword">import</span> android.support.v4.app.ListFragment;
+<span class="hljs-keyword">import</span> android.support.v4.view.ViewPager;</code></pre></div></body>
+</html>

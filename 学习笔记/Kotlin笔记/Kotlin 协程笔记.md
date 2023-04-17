@@ -926,7 +926,7 @@ newSingleThreadContext: I'm working in thread MyOwnThread @coroutine#5
 
 - 当使用launch { ... }`时， 其Context和调度器都继承于当前协程域的，runBlocking是Main线程的，所以会运行在Main线程上；`
 - 而使用`launch(Dispatchers.Unconfined)`时，虽然log打印在Main线程，但实际是不限制其协程域的，后面会说明；
-- 一般没显式指定其调度器或使用Dispatchers.Default时， 都会运行在默认协程中，该默认协程是在后台共享线程池的协程域中；
+- 一般没显式指定其调度器(Unconfined)或使用Dispatchers.Default时， 都会运行在默认协程中，该默认协程是在后台共享线程池的协程域中；
 - `newSingleThreadContext`会创建一个新线程来专门跑运行该协程；一般来说，创建一个专门使用的线程是浪费资源的，因此实际使用中，必须显式进行释放它(在使用完成后)；或者放到全局顶层变量，来进行复用；
 
 #### Unconfined vs confied dispatcher
@@ -1300,6 +1300,8 @@ Post-main, current thread: Thread[main @coroutine#1,5,main], thread local value:
 
 `ThreadLocal`对于Kotlin的协程提供一流的支持；它有一个关键的限制： 当 thread-local更换时，新值并不会传递给协程的调用者（因为context elembent并不会跟踪所有threadlocal对象），并且在下一次挂起时，其更新的值会丢失；在协程中，使用`withContext`可更新`thread-local`的值。
 
+> 注：yield 是挂起协程，让协程放弃本次 cpu 执行机会让给别的协程，当线程空闲时再次运行协程。
+
 ### 五、异步流(Asynchronous Flow)
 
 `async`挂起方法只能返回一个值，但我们怎么能在异步中才返回多个值？就需要用到Kotlin Flow.
@@ -1365,6 +1367,9 @@ fun main() = runBlocking<Unit> {
 在上面使用`List<Int>`结果类型，意味着一次返回所有值。为了能看到在异步运行，我们使用`Flow<Int>`类型，该类型类似于`Sequence<Int>`;
 
 ```kotlin
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
 fun simple(): Flow<Int> = flow { // flow builder
     for (i in 1..3) {
         delay(100) // pretend we are doing something useful here
@@ -1711,7 +1716,7 @@ fun main() = runBlocking<Unit> {
 
 ##### `withContext`的错误使用(Wrong emission `withContext`)
 
-然而有些需要长时间运行的可能需要运行在`Dispatcher.Default`，或者需要切换到UI线程里更新UI。 一般来说，我们会使用`withContext`来切换`context`让其运行不同的线程， 但在`flow {...}`语句中又遵守“上下文保持”的原则，因此不允许发射(`emit`)到其它`context`中，会直接抛`IllegalStateException`；
+然而有些需要长时间运行的可能需要运行在`Dispatcher.Default`，或者需要切换到UI线程里更新UI。 一般来说，我们会**使用`withContext`来切换`context`让其运行不同的线程**， 但在`flow {...}`语句中又遵守“上下文保持”的原则，因此不允许发射(`emit`)到其它`context`中，会直接抛`IllegalStateException`；
 
 ```kotlin
 fun simple(): Flow<Int> = flow {
@@ -2032,7 +2037,7 @@ fun requestFlow(i: Int): Flow<String> = flow {
 fun main() = runBlocking<Unit> { 
     val startTime = System.currentTimeMillis() // remember the start time 
     (1..3).asFlow().onEach { delay(100) } // a number every 100 ms 
-        .flatMapConcat { requestFlow(it) }                                                           
+        .flatMapConcat { requestFlow(it) }                                           
         .collect { value -> // collect and print 
             println("$value at ${System.currentTimeMillis() - startTime} ms from start") 
         } 
@@ -2050,7 +2055,23 @@ fun main() = runBlocking<Unit> {
 3: Second at 1829 ms from start
 ```
 
-可以看到`flattenConcat`可以让2个嵌套的flow按顺序输出；
+可以看到`flatMapConcat`可以让2个嵌套的flow按顺序输出；
+
+而`flattenConcat`效果是一样，但用法稍稍不同：
+
+```kotlin
+fun main() = runBlocking<Unit> { 
+    val startTime = System.currentTimeMillis() // remember the start time 
+    (1..3).asFlow().onEach { delay(100) } // a number every 100 ms 
+        .map { requestFlow(it) } 
+        .flattenConcat()
+        .collect { value -> // collect and print 
+            println("$value at ${System.currentTimeMillis() - startTime} ms from start") 
+        } 
+}
+```
+
+输出结果是上面一致；
 
 `flatMapMerge﻿`
 
@@ -2127,7 +2148,7 @@ fun main() = runBlocking<Unit> {
     } catch (e: Throwable) {
         println("Caught $e")
     } 
-}            
+}
 ```
 
 输出结果:
@@ -2240,33 +2261,268 @@ Exception in thread "main" java.lang.IllegalStateException: Collected 2
 
 可以看到`collect{...}`里的异常无法捕获； 
 
+##### 声明式捕获
+
+可将 catch 操作符的声明性与处理所有异常的期望相结合，将 collect 操作符的代码块移动到 onEach 中，并将其放到 catch 操作符之前。收集该流必须由调用无参的 collect() 来触发：
+
+```kotlin
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun simple(): Flow<Int> = flow {
+    for (i in 1..3) {
+        println("Emitting $i")
+        emit(i)
+    }
+}
+
+fun main() = runBlocking<Unit> {
+    simple()
+        .onEach { value ->
+            check(value <= 1) { "Collected $value" }                 
+            println(value) 
+        }
+        .catch { e -> println("Caught $e") }
+        .collect()
+}
+```
+
+输出结果：
+
+```
+Emitting 1
+1
+Emitting 2
+Caught java.lang.IllegalStateException: Collected 2
+```
+
+#### 流完成
+
+当流收集完成时（普通情况或异常情况），它可能需要执行一个动作， 可通过两种方式完成：命令式或声明式；
+
+##### 命令式`finally`块
+
+除了 `try`/`catch` 之外，收集器还能使用 `finally` 块在 `collect` 完成时执行一个动作
+
+```kotlin
+fun simple(): Flow<Int> = (1..3).asFlow()
+
+fun main() = runBlocking<Unit> {
+    try {
+        simple().collect { value -> println(value) }
+    } finally {
+        println("Done")
+    }
+} 
+```
+
+##### 声明式处理
+
+对于声明式，流拥有 [onCompletion](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/on-completion.html) 过渡操作符，它在流完全收集时调用。
+
+改写上面命令式例子：
+
+```kotlin
+simple()
+    .onCompletion { println("Done") }
+    .collect { value -> println(value) }
+```
+
+输出：
+
+```
+1
+2
+3
+Done
+```
+
+`onCompletion `的主要优点是其 lambda 表达式的可空参数 Throwable 可以用于确定流收集是正常完成还是有异常发生。在下面的示例中 simple 流在发射数字 1 之后抛出了一个异常：
+
+```kotlin
+fun simple(): Flow<Int> = flow {
+    emit(1)
+    throw RuntimeException()
+}
+
+fun main() = runBlocking<Unit> {
+    simple()
+        .onCompletion { cause -> if (cause != null) println("Flow completed exceptionally") }
+        .catch { cause -> println("Caught exception") }
+        .collect { value -> println(value) }
+}  
+```
+
+输出：
+
+```
+1
+Flow completed exceptionally
+Caught exception
+```
+
+onCompletion 操作符与 catch 不同，它不处理异常。我们可以看到前面的示例代码，异常仍然流向下游。它将被提供给后面的 onCompletion 操作符，并可以由 catch 操作符处理。
+
+##### 命令式还是声明式
+
+现在我们知道如何收集流，并以命令式与声明式的方式处理其完成及异常情况。 这里有一个很自然的问题是，哪种方式应该是首选的？为什么？ 作为一个库，我们不主张采用任何特定的方式，并且相信这两种选择都是有效的， 应该根据自己的喜好与代码风格进行选择。
+
+##### 成功完成
+
+与 [catch](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/catch.html) 操作符的另一个不同点是 [onCompletion](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/on-completion.html) 能观察到所有异常并且仅在上游流成功完成（没有取消或失败）的情况下接收一个 `null` 异常。
+
+```kotlin
+fun simple(): Flow<Int> = (1..3).asFlow()
+
+fun main() = runBlocking<Unit> {
+    simple()
+        .onCompletion { cause -> println("Flow completed with $cause") }
+        .collect { value ->
+            check(value <= 1) { "Collected $value" }                 
+            println(value) 
+        }
+}
+```
+
+我们可以看到完成时 cause 不为空，因为流由于下游异常而中止：
+
+```
+1
+Flow completed with java.lang.IllegalStateException: Collected 2
+Exception in thread "main" java.lang.IllegalStateException: Collected 2
+```
+
+##### 启动流
+
+使用流表示来自一些源的异步事件是很简单的。
+
+```kotlin
+// 模仿事件流
+fun events(): Flow<Int> = (1..3).asFlow().onEach { delay(100) }
+
+fun main() = runBlocking<Unit> {
+    events()
+        .onEach { event -> println("Event: $event") }
+        .collect() // <--- 等待流收集
+    println("Done")
+}     
+```
+
+输出结果：
+
+```
+Event: 1
+Event: 2
+Event: 3
+Done
+```
+
+由于我们使用`collect`末端操作符来收集数据， 所以collect会一直等待流被收集完才会往下运行；
+
+这里可使用 `launchIn` 替换 `collect` 我们可以在单独的协程中启动流的收集，这样就可以立即继续进一步执行代码：
+
+```kotlin
+fun main() = runBlocking<Unit> {
+    events()
+        .onEach { event -> println("Event: $event") }
+        .launchIn(this) // <--- 在单独的协程中执行流
+    println("Done")
+}        
+```
+
+输出结果：
+
+```
+Done
+Event: 1
+Event: 2
+Event: 3
+```
+
+`launchIn` 必要的参数 [CoroutineScope](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-scope/index.html) 指定了用哪一个协程来启动流的收集。在先前的示例中这个作用域来自 runBlocking 协程构建器，在这个流运行的时候，runBlocking 作用域等待它的子协程执行完毕并防止 main 函数返回并终止此示例。
+
+在实际的应用中，作用域来自于一个寿命有限的实体。在该实体的寿命终止后，相应的作用域就会被取消，即取消相应流的收集。这种成对的 `onEach { ... }.launchIn(scope)` 工作方式就像 `addEventListener` 一样。而且，这不需要相应的 `removeEventListener` 函数， 因为取消与结构化并发可以达成这个目的。
+
+> 注: launchIn 也会返回一个Job
+
+#### 流取消检测
+
+为方便起见，[流](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flow.html)构建器对每个发射值执行附加的 [ensureActive](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/ensure-active.html) 检测以进行取消。 这意味着从 `flow { ... }` 发出的繁忙循环是可以取消的：
+
+```kotlin
+fun foo(): Flow<Int> = flow { 
+    for (i in 1..5) {
+        println("Emitting $i") 
+        emit(i) 
+    }
+}
+
+fun main() = runBlocking<Unit> {
+    foo().collect { value -> 
+        if (value == 3) cancel()  
+        println(value)
+    } 
+}
+```
+
+仅得到不超过 3 的数字，在尝试发出 4 之后抛出 [CancellationException](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-cancellation-exception/index.html)；
+
+```
+Emitting 1
+1
+Emitting 2
+2
+Emitting 3
+3
+Emitting 4
+Exception in thread "main" kotlinx.coroutines.JobCancellationException: BlockingCoroutine was cancelled; job="coroutine#1":BlockingCoroutine{Cancelled}@6d7b4f4c
+```
+
+但是，出于性能原因，大多数其他流操作不会自行执行其他取消检测。 例如，如果使用 [IntRange.asFlow](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/kotlin.ranges.-int-range/as-flow.html) 扩展来编写相同的繁忙循环， 并且没有在任何地方暂停，那么就没有取消的检测；
+
+##### 让繁忙的流可取消
+
+在协程处于繁忙循环的情况下，必须明确检测是否取消。 可以添加 `.onEach { currentCoroutineContext().ensureActive() }`， 但是这里提供了一个现成的 [cancellable](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/cancellable.html) 操作符来执行此操作：
+
+```kotlin
+          
+fun main() = runBlocking<Unit> {
+    (1..5).asFlow().cancellable().collect { value -> 
+        if (value == 3) cancel()  
+        println(value)
+    } 
+}
+```
+
 
 
 #### Flow的常用方法
 
-| 方法名             | 方法使用说明                                                 |
-| ------------------ | ------------------------------------------------------------ |
-| flow {...}         | 用于构建flow；                                               |
-| emit()             | 用于从flow中发射数据;                                        |
-| collect()          | 用于从flow从收集数据， 属于终结操作符；                      |
-| asFlow()           | 用于不同的集合（collection）和序列（sequence）转为Flow；     |
-| asFlow()           | 用于把上游的结果进行一对一的转换;                            |
-| map {...}          | 把上游的结果进行一定的转换                                   |
-| filter()           | 用于把上游的结果进行一定的条件进行过滤，来决定是否发射给下游； |
-| transform()        | 可用于模仿像map和filter的简单变换，也可用于复杂的转换；使用`transform`操作符可发出任意次数的任意值； |
-| take()             | 用于限制发送给下游的个数；                                   |
-| reduce()和flod()   | 用于缩减flow为一个值， fold其实只是比reduce多一个初始值而已；两者属于终结操作符； |
-| flowOn(Diapatch)   | 用于切换发射数据的context的                                  |
-| buffer()           | 用于发射的协程与collector协程并发运行                        |
-| conflate()         | 用于发射的结果可跳过collector的收集(如果collector无法马上处理时)；但最后一个会收集到 |
-| xxxLatest {...}    | mapLatest， collectLatest，flatMapLatest： 用于发射结果时，不管{...}里是否已处理完之前的值，就直接重启{...}方法块的代码； |
-| zip(flow){..}      | 组合2个flow的结果进行整合:每次需要2个flow都发射结果时，会触发zip |
-| combile(flow){..}  | 组合2个flow的结果: 第一次合并时，需要2个flow都有结果(某个flow有多个时，取最新)，后面只要有flow有更新结果，combile都会触发 |
-| flatMapConcat{...} | 组合2个flow的结果: 可等待内部流({...})完成之后才收集下一个上游传入的值； |
-| flatMapMerge﻿{...}  | 组合2个flow的结果: 并发收集结果流，相当于执行顺序是首先执行 map { ... } 然后在其返回结果上调用 flattenMerge。 |
-| flatMapLatest{...} | 组合2个flow的结果: 与 `collectLatest`操作符类似，`flatMapLatest`在新值到来时， 会立即取消当前`flatMapLatest`块的代码运行； |
-|                    |                                                              |
-|                    |                                                              |
+| 方法名                         | 方法使用说明                                                 |
+| ------------------------------ | ------------------------------------------------------------ |
+| flow {...}                     | 用于构建flow；                                               |
+| emit()                         | 用于从flow中发射数据;                                        |
+| collect()                      | 用于从flow从收集数据， 属于终结操作符；                      |
+| asFlow()                       | 用于不同的集合（collection）和序列（sequence）转为Flow；     |
+| asFlow()                       | 用于把上游的结果进行一对一的转换;                            |
+| map {...}                      | 把上游的结果进行一定的转换                                   |
+| filter()                       | 用于把上游的结果进行一定的条件进行过滤，来决定是否发射给下游； |
+| transform()                    | 可用于模仿像map和filter的简单变换，也可用于复杂的转换；使用`transform`操作符可发出任意次数的任意值； |
+| take()                         | 用于限制发送给下游的个数；                                   |
+| reduce()和flod()               | 用于缩减flow为一个值， fold其实只是比reduce多一个初始值而已；两者属于终结操作符； |
+| flowOn(Diapatch)               | 用于切换发射数据的context的                                  |
+| buffer()                       | 用于发射的协程与collector协程并发运行                        |
+| conflate()                     | 用于发射的结果可跳过collector的收集(如果collector无法马上处理时)；但最后一个会收集到 |
+| xxxLatest {...}                | mapLatest， collectLatest，flatMapLatest： 用于发射结果时，不管{...}里是否已处理完之前的值，就直接重启{...}方法块的代码； |
+| zip(flow){..}                  | 组合2个flow的结果进行整合:每次需要2个flow都发射结果时，会触发zip |
+| combile(flow){..}              | 组合2个flow的结果: 第一次合并时，需要2个flow都有结果(某个flow有多个时，取最新)，后面只要有flow有更新结果，combile都会触发 |
+| flatMapConcat{...}             | 组合2个flow的结果: 可等待内部流({...})完成之后才收集下一个上游传入的值； |
+| flatMapMerge﻿{...}              | 组合2个flow的结果: 并发收集结果流，相当于执行顺序是首先执行 map { ... } 然后在其返回结果上调用 flattenMerge。 |
+| flatMapLatest{...}             | 组合2个flow的结果: 与 `collectLatest`操作符类似，`flatMapLatest`在新值到来时， 会立即取消当前`flatMapLatest`块的代码运行； |
+| onEach{}                       | 进行声明式捕获，以便捕获上下游的异常；                       |
+| onCompletion {}                | 进行流完成时的最终操作；相比try..finally{}, `onCompletion `的主要优点是其 lambda 表达式的可空参数 Throwable 可以用于确定流收集是正常完成还是有异常发生。 |
+| catch{}                        | `catch`操作符来保留此异常的透明性并允许封装它的异常处理。catch 操作符的代码块可以分析异常并根据捕获到的异常以不同的方式对其做出反应， 但其下游的异常会逸出； |
+| onEach { ... }.launchIn(scope) | 工作方式就像 `addEventListener` 一样。而且，这不需要相应的 `removeEventListener` 函数， 因为取消与结构化并发可以达成这个目的。 |
 
 
 
@@ -2276,13 +2532,96 @@ Exception in thread "main" java.lang.IllegalStateException: Collected 2
 
 ### 相关函数
 
-| 函数                           | 描述                       |      |
-| :----------------------------- | :------------------------- | ---- |
-| withContext(NonCancellable) {} | 启动不可取消的代码块       |      |
-| withTimeout/withTimeoutOrNull  | 超时会进行取消其挂起方法   |      |
-| measureTimeMillis{...}         | 返回该方法块所运行的总时间 |      |
-|                                |                            |      |
-|                                |                            |      |
+| 函数                           | 描述                                                         |      |
+| :----------------------------- | :----------------------------------------------------------- | ---- |
+| withContext(NonCancellable) {} | 启动不可取消的代码块                                         |      |
+| withTimeout/withTimeoutOrNull  | 超时会进行取消其挂起方法                                     |      |
+| measureTimeMillis{...}         | 返回该方法块所运行的总时间                                   |      |
+| check(condition) {}            | 检测是否满足condition，不满足则直接抛出以运行其代码块{}的结果为错误信息的IllegalStateException异常 |      |
+|                                |                                                              |      |
+
+
+
+### 通道(Channel)
+
+延期的值提供了一种便捷的方法使单个值在多个协程之间进行相互传输。 通道提供了一种在流中传输值的方法。
+
+#### 通道基础
+
+一个 [Channel](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-channel/index.html) 是一个和 `BlockingQueue` 非常相似的概念。其中一个不同是它代替了阻塞的 `put` 操作并提供了挂起的 [send](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-send-channel/send.html)，还替代了阻塞的 `take` 操作并提供了挂起的 [receive](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-receive-channel/receive.html)。
+
+```kotlin
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+fun main() = runBlocking {
+    val channel = Channel<Int>()
+    launch {
+        // 这里可能是消耗大量 CPU 运算的异步逻辑，我们将仅仅做 5 次整数的平方并发送
+        for (x in 1..5) channel.send(x * x)
+    }
+    // 这里我们打印了 5 次被接收的整数：
+    repeat(5) { println(channel.receive()) }
+    println("Done!")
+}
+```
+
+输出结果：
+
+```
+1
+4
+9
+16
+25
+Done!
+```
+
+#### 关闭与迭代通道
+
+和队列不同，一个通道可以通过被关闭来表明没有更多的元素将会进入通道。 在接收者中可以定期的使用 `for` 循环来从通道中接收元素。
+
+从概念上来说，一个 [close](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-send-channel/close.html) 操作就像向通道发送了一个特殊的关闭指令。 这个迭代停止就说明关闭指令已经被接收了。所以这里保证所有先前发送出去的元素都在通道关闭前被接收到。
+
+```kotlin
+val channel = Channel<Int>()
+launch {
+    for (x in 1..5) channel.send(x * x)
+    channel.close() // 我们结束发送
+}
+// 这里我们使用 `for` 循环来打印所有被接收到的元素（直到通道被关闭）
+for (y in channel) println(y)
+println("Done!")
+```
+
+#### 构建通道生产者
+
+协程生成一系列元素的模式很常见。 这是 *生产者—消费者* 模式的一部分，并且经常能在并发的代码中看到它。 你可以将生产者抽象成一个函数，并且使通道作为它的参数，但这与必须从函数中返回结果的常识相违悖。
+
+这里有一个名为 [produce](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/produce.html) 的便捷的协程构建器，可以很容易的在生产者端正确工作， 并且我们使用扩展函数 [consumeEach](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/consume-each.html) 在消费者端替代 `for` 循环：
+
+```kotlin
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+fun CoroutineScope.produceSquares(): ReceiveChannel<Int> = produce {
+    for (x in 1..5) send(x * x)
+}
+
+fun main() = runBlocking {
+    val squares = produceSquares()
+    squares.consumeEach { println(it) }
+    println("Done!")
+}
+```
+
+
+
+
+
+
+
+
 
 
 

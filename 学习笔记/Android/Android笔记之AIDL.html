@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Android笔记之AIDL</title>
+<link rel="stylesheet" href="https://stackedit.io/res-min/themes/base.css" />
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body><div class="container"><h1 id="android笔记之aidl">Android笔记之AIDL</h1>
+
+<blockquote>
+  <p>本文对《Android开发艺术搜索》的学习笔记，仅作为自我记忆学习使用，请勿转载。</p>
+</blockquote>
+
+<p>  使用AIDL来进行跨进程的方法调用。可分为服务端和客户端； <br>
+  服务端需要创建一个Service，用于监听客户端的连接请求；然后创建一个AIDL文件，进行声明那么需要暴露给客户端的接口；最后在Service中实现这个AIDL接口。 <br>
+  客户端进行绑定服务端的 Service；进行绑定成功后，将服务端返回在 Binder 对象转化成 AIDL 接口所属的类型；通过该对象就可以直接调用AIDL里的接口了。</p>
+
+
+
+<h3 id="aidl接口的创建">AIDL接口的创建</h3>
+
+<p>  我们进行创建一个后缀为 XXX.aidl 的文件，进行声明接口：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-comment">// Book.aidl</span>
+<span class="hljs-keyword">package</span> com.example.yufen.learnapplication.AIDLDemo;
+
+parcelable Book;
+
+----------------------------------------------------------
+
+<span class="hljs-comment">// IBookManager.aidl</span>
+<span class="hljs-keyword">package</span> com.example.yufen.learnapplication.AIDLDemo;
+<span class="hljs-comment">//</span>
+<span class="hljs-keyword">import</span> com.example.yufen.learnapplication.AIDLDemo.Book;
+
+interface IBookManager {
+    List&lt;Book&gt; getBookList();
+    <span class="hljs-keyword">void</span> addBood(in Book book);
+}
+<span class="hljs-comment">//在LearnApplication\app\build\generated\source\aidl\debug\com\example\yufen\learnapplication\AIDLDemo 里能找到IBookManager.java（系统自动帮我们创建）</span></code></pre>
+
+<p>  在Android Studio中，在选中某个包下，进行右键 -&gt; new -&gt; AIDL -&gt;AIDL file, 输入AIDL的名字，这里系统就会生成在之前选中的包的包名一样的一个包。可参考 <a href="http://jingyan.baidu.com/article/6f2f55a15d53c9b5b93e6ca1.html">Android studio aidl文件的创建使用</a>. <br>
+  在AIDL中，并不是所有的数据类型都支持的。下面的数据为支持的数据类型：</p>
+
+<ul>
+<li>基本数据类型（int, long, char, boolean, double等）；</li>
+<li>String 和 CharSequence</li>
+<li>List: 只支持ArrayList,里面每个元素都必须能够被AIDL支持；</li>
+<li>Map: 只支持HashMap, 里面每个元素都必须能够被AIDL支持，包括Key 和 Value；</li>
+<li>Parcelable: 所有实现了 Parcelable 接口的对象；</li>
+<li>AIDL： 所有的AIDL接口本身也可以在AIDL文件中使用；</li>
+</ul>
+
+<p>  创建AIDL文件，我们还需要知道以下知识点：</p>
+
+<ol>
+<li>自定义的Parcelable 对象和 AIDL对象必须要显式 import进来；</li>
+<li>如果AIDL文件中用到了自定义的 Parcelable对象，那么必须新建一个和它同名的AIDL文件，并在其中声明它为 parcelable 类型。 如：IBookManager.aidl文件中 import了 自定义的Book的包名。</li>
+<li>在AIDLk ,除了基本数据类型，其它类型的参数必须标上 方向： in, out 或 inout, in 表示输入型参数，out 表示输出型参数，inout 表示输入输出型参数；需要根据因此情况使用，以免造成底层实现有不必要的开销。</li>
+<li>为了方便AIDL开发，建议把所有和 AIDL 相关的类和文件全部放入同一个包中。好处就是：当客户端是另外一个应用时，我们可以直接把整个包复制到客户工程中。</li>
+<li>AIDL的包结构在服务端和客户端需要保持一致，否则运行会出错，因为客户端需要反序列化服务端中 和 AIDL接口相关的类。</li>
+</ol>
+
+
+
+<h3 id="远程服务器的-service-实现">远程服务器的 Service 实现</h3>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-comment">//MyService.java</span>
+<span class="hljs-keyword">package</span> com.example.yufen.learnapplication.AIDLDemo;
+
+<span class="hljs-keyword">import</span> android.app.Service;
+<span class="hljs-keyword">import</span> android.content.Intent;
+<span class="hljs-keyword">import</span> android.os.IBinder;
+<span class="hljs-keyword">import</span> android.os.RemoteException;
+<span class="hljs-keyword">import</span> java.util.List;
+<span class="hljs-keyword">import</span> java.util.concurrent.CopyOnWriteArrayList;
+
+<span class="hljs-javadoc">/**
+ * Created by yufen on 2016/6/24.
+ */</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyService</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Service</span> {</span>
+
+    <span class="hljs-comment">//CopyOnWriteArrayList支持并发读/写，</span>
+    <span class="hljs-comment">//CopyOnWriteArrayList实现 List&lt;E&gt;,在Binder中，会按照List的规范进行访问数据</span>
+    <span class="hljs-keyword">public</span> CopyOnWriteArrayList&lt;Book&gt; mBookLists = <span class="hljs-keyword">new</span> CopyOnWriteArrayList&lt;Book&gt;();
+
+    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onCreate</span>() {
+        <span class="hljs-keyword">super</span>.onCreate();
+        <span class="hljs-comment">//添加2本书</span>
+        mBookLists.add(<span class="hljs-keyword">new</span> Book(<span class="hljs-number">1</span>, <span class="hljs-string">"Android"</span>));
+        mBookLists.add(<span class="hljs-keyword">new</span> Book(<span class="hljs-number">2</span>, <span class="hljs-string">"AIDL"</span>));
+    }
+
+    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">public</span> IBinder <span class="hljs-title">onBind</span>(Intent arg0) {
+        <span class="hljs-keyword">return</span> stub;<span class="hljs-comment">//返回 Binder对象</span>
+    }
+    <span class="hljs-comment">//实现IBookManager.AIDL上声明的接口</span>
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> IBookManager.Stub stub = <span class="hljs-keyword">new</span> IBookManager.Stub() {
+
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> List&lt;Book&gt; <span class="hljs-title">getBookList</span>() <span class="hljs-keyword">throws</span> RemoteException {
+            <span class="hljs-keyword">synchronized</span> (mBookLists) {
+                <span class="hljs-keyword">return</span> mBookLists;
+            }
+        }
+
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">addBood</span>(Book book) <span class="hljs-keyword">throws</span> RemoteException {
+            <span class="hljs-keyword">synchronized</span> (mBookLists) {
+                <span class="hljs-keyword">if</span>(!mBookLists.contains(book)){
+                    mBookLists.add(book);
+                }
+            }
+
+        }
+    };
+
+}
+</code></pre>
+
+
+
+<h3 id="客户端的实现">客户端的实现</h3>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-comment">//AIDLActivity.java</span>
+<span class="hljs-keyword">package</span> com.example.yufen.learnapplication.AIDLDemo;
+
+<span class="hljs-keyword">import</span> android.app.Activity;
+<span class="hljs-keyword">import</span> android.content.ComponentName;
+<span class="hljs-keyword">import</span> android.content.Context;
+<span class="hljs-keyword">import</span> android.content.Intent;
+<span class="hljs-keyword">import</span> android.content.ServiceConnection;
+<span class="hljs-keyword">import</span> android.os.Bundle;
+<span class="hljs-keyword">import</span> android.os.IBinder;
+<span class="hljs-keyword">import</span> android.os.RemoteException;
+<span class="hljs-keyword">import</span> android.util.Log;
+<span class="hljs-keyword">import</span> com.example.yufen.learnapplication.R;
+
+<span class="hljs-keyword">import</span> java.util.List;
+
+<span class="hljs-javadoc">/**
+ * Created by yufen 2016/6/24.
+ */</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">AIDLActivity</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">Activity</span> {</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">final</span> String TAG = <span class="hljs-string">"yufen/AIDLActivity"</span>;
+
+    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">protected</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onCreate</span>(Bundle savedInstanceState) {
+        <span class="hljs-keyword">super</span>.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        Intent intent = <span class="hljs-keyword">new</span> Intent(getApplicationContext(), MyService.class);
+        <span class="hljs-comment">//绑定远程服务</span>
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+        Log.d(TAG,<span class="hljs-string">"onCreate"</span>);
+    }
+
+    <span class="hljs-keyword">private</span> ServiceConnection mConnection = <span class="hljs-keyword">new</span> ServiceConnection() {
+
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onServiceDisconnected</span>(ComponentName arg0) {
+        }
+
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onServiceConnected</span>(ComponentName arg0, IBinder arg1) {
+            Log.d(TAG,<span class="hljs-string">"onServiceConnected: IBinder = "</span> + arg1);
+            <span class="hljs-comment">//服务端返回的Binder对象转为 AIDL 接口</span>
+            IBookManager bookManager = IBookManager.Stub.asInterface(arg1);
+            <span class="hljs-keyword">try</span> {
+                               List&lt;Book&gt; bookList = bookManager.getBookList();
+                Log.d(TAG,<span class="hljs-string">"1, get book by AIDL: "</span> + bookList);
+                Book book = <span class="hljs-keyword">new</span> Book(<span class="hljs-number">3</span>, <span class="hljs-string">"Android笔记之AIDL"</span>);
+                bookManager.addBood(book);
+                Log.d(TAG,<span class="hljs-string">"2,get book by AIDL: "</span> + bookManager.getBookList());
+            } <span class="hljs-keyword">catch</span> (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+    };
+}</code></pre>
+
+<p>为了在一个应用里模仿进行进程间通信，我们需要把Service放在另外一个进程进行运行：</p>
+
+
+
+<pre class="prettyprint"><code class="language-xml hljs ">    //AndroidManifest.xml
+    <span class="hljs-tag">&lt;<span class="hljs-title">activity</span> <span class="hljs-attribute">android:name</span>=<span class="hljs-value">".AIDLDemo.AIDLActivity"</span>/&gt;</span>
+
+    <span class="hljs-tag">&lt;<span class="hljs-title">service</span> <span class="hljs-attribute">android:name</span>=<span class="hljs-value">".AIDLDemo.MyService"</span>
+         <span class="hljs-attribute">android:process</span>=<span class="hljs-value">":remote"</span>&gt;</span>
+    <span class="hljs-tag">&lt;/<span class="hljs-title">service</span>&gt;</span></code></pre>
+
+<p>下面补上我们进行自定义 Book类的源代码，其实现 Parcelable 接口；</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-keyword">package</span> com.example.yufen.learnapplication.AIDLDemo;
+
+<span class="hljs-javadoc">/**
+ * Created by yufen 2016/6/24.
+ */</span>
+<span class="hljs-keyword">import</span> android.os.Parcel;
+<span class="hljs-keyword">import</span> android.os.Parcelable;
+
+class Book implements Parcelable {
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">int</span> bookId;
+    <span class="hljs-keyword">public</span> String bookName;
+
+    Book(<span class="hljs-keyword">int</span> bookId, String bookName){
+        <span class="hljs-keyword">this</span>.bookId = bookId;
+        <span class="hljs-keyword">this</span>.bookName = bookName;
+    }
+
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">int</span> <span class="hljs-title">describeContents</span>() {
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+    }
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">writeToParcel</span>(Parcel out, <span class="hljs-keyword">int</span> flags) {
+        out.writeInt(bookId);
+        out.writeString(bookName);
+    }
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">final</span> Parcelable.Creator&lt;Book&gt; CREATOR = <span class="hljs-keyword">new</span> Parcelable.Creator&lt;Book&gt;() {
+        <span class="hljs-keyword">public</span> Book <span class="hljs-title">createFromParcel</span>(Parcel in) {
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> Book(in);
+        }
+        <span class="hljs-keyword">public</span> Book[] <span class="hljs-title">newArray</span>(<span class="hljs-keyword">int</span> size) {
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> Book[size];
+        }
+    };
+
+    <span class="hljs-keyword">private</span> <span class="hljs-title">Book</span>(Parcel in) {
+        bookId = in.readInt();
+        bookName = in.readString();
+    }
+
+    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">public</span> String <span class="hljs-title">toString</span>() {
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"BoodId: "</span> + bookId + <span class="hljs-string">", BookName: "</span>+ bookName;
+    }
+
+
+}</code></pre>
+
+<p>运行AIDL的结果是：</p>
+
+
+
+<pre class="prettyprint"><code class=" hljs avrasm"><span class="hljs-number">06</span>-<span class="hljs-number">24</span> <span class="hljs-number">13</span>:<span class="hljs-number">40</span>:<span class="hljs-number">59.869</span> <span class="hljs-number">26481</span>-<span class="hljs-number">26481</span>/? D/yufen/onItemClick:  view = android<span class="hljs-preprocessor">.support</span><span class="hljs-preprocessor">.v</span>7<span class="hljs-preprocessor">.widget</span><span class="hljs-preprocessor">.AppCompatTextView</span>{d9cdb29 V<span class="hljs-preprocessor">.ED</span>..... ........ <span class="hljs-number">0</span>,<span class="hljs-number">1197</span>-<span class="hljs-number">996</span>,<span class="hljs-number">1365</span> <span class="hljs-preprocessor">#1020014 android:id/text1}, position = 7, id = 7</span>
+<span class="hljs-number">06</span>-<span class="hljs-number">24</span> <span class="hljs-number">13</span>:<span class="hljs-number">41</span>:<span class="hljs-number">00.029</span> <span class="hljs-number">26481</span>-<span class="hljs-number">26481</span>/? D/yufen/AIDLActivity: onCreate
+<span class="hljs-number">06</span>-<span class="hljs-number">24</span> <span class="hljs-number">13</span>:<span class="hljs-number">41</span>:<span class="hljs-number">00.279</span> <span class="hljs-number">26481</span>-<span class="hljs-number">26481</span>/? D/yufen/AIDLActivity: onServiceConnected: IBinder = android<span class="hljs-preprocessor">.os</span><span class="hljs-preprocessor">.BinderProxy</span>@b0960f8
+<span class="hljs-number">06</span>-<span class="hljs-number">24</span> <span class="hljs-number">13</span>:<span class="hljs-number">41</span>:<span class="hljs-number">00.289</span> <span class="hljs-number">26481</span>-<span class="hljs-number">26481</span>/? D/yufen/AIDLActivity: <span class="hljs-number">1</span>, get book by AIDL: [BoodId: <span class="hljs-number">1</span>, BookName: Android, BoodId: <span class="hljs-number">2</span>, BookName: AIDL]
+<span class="hljs-number">06</span>-<span class="hljs-number">24</span> <span class="hljs-number">13</span>:<span class="hljs-number">41</span>:<span class="hljs-number">00.289</span> <span class="hljs-number">26481</span>-<span class="hljs-number">26481</span>/? D/yufen/AIDLActivity: <span class="hljs-number">2</span>,get book by AIDL: [BoodId: <span class="hljs-number">1</span>, BookName: Android, BoodId: <span class="hljs-number">2</span>, BookName: AIDL, BoodId: <span class="hljs-number">3</span>, BookName: Android笔记之AIDL]</code></pre>
+
+
+
+<h3 id="remotecallbacklist-删除跨进行-listener-的接口">RemoteCallbackList （删除跨进行 Listener 的接口）</h3>
+
+<p>  <strong>问题</strong>： 跨进行通信时，在服务器进行注册一个监听对象 listener，但再次发送监听对象 Listener时取消监听时，会报无法找到相同的对象进行删除。 <br>
+  <strong>根本原因</strong>： 在跨进程间通信时，Binder 会把客户端传递过来的对象重新转化并生成一个新对象。在取消和注册时，在服务器生成的不是同一个对象。 <br>
+  <strong>解决方案</strong>：使用 RemoteCallbackList&lt; E extends IInterface&gt;。</p>
+
+<p>  RemoteCallbackList&lt; E extends IInterface&gt; 是系统专门提供的用于删除跨进程 Listener的接口，支持管理任意的AIDL接口（AIDL也继承于 IInterface接口）。</p>
+
+<hr>
+
+<p>下面插入RemoteCallbackList实现原理和源代码的分析：</p>
+
+<p><strong>其工作原理</strong>：使用ArrayMap来保存所有的AIDL回调，Key 为 IBinder 类型，value 是 Callback 类型：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-comment">//RemoteCallbackList.java</span>
+ArrayMap&lt;IBinder, Callback&gt; mCallbacks
+            = <span class="hljs-keyword">new</span> ArrayMap&lt;IBinder, Callback&gt;();</code></pre>
+
+<p>Callback 为其内部类，对 E (远程Listener) 进行封装：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">        Callback(E callback, Object cookie) {
+            mCallback = callback;
+            mCookie = cookie;
+        }</code></pre>
+
+<p>我们看看 RemoteCallbackList 的注册方法和注销方法：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">    <span class="hljs-keyword">public</span> <span class="hljs-keyword">boolean</span> <span class="hljs-title">register</span>(E callback, Object cookie) {
+        <span class="hljs-keyword">synchronized</span> (mCallbacks) {
+            <span class="hljs-comment">//使用 Binder 对象作为Key</span>
+            IBinder binder = callback.asBinder();
+            <span class="hljs-keyword">try</span> {
+                Callback cb = <span class="hljs-keyword">new</span> Callback(callback, cookie);
+                binder.linkToDeath(cb, <span class="hljs-number">0</span>);
+                mCallbacks.put(binder, cb);
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">true</span>;
+            } <span class="hljs-keyword">catch</span> (RemoteException e) {
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">false</span>;
+            }
+        }
+    }
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">boolean</span> <span class="hljs-title">unregister</span>(E callback) {
+        <span class="hljs-keyword">synchronized</span> (mCallbacks) {
+            <span class="hljs-comment">//依据 Binder 对象来删除Listener</span>
+            Callback cb = mCallbacks.remove(callback.asBinder());
+            <span class="hljs-keyword">if</span> (cb != <span class="hljs-keyword">null</span>) {
+                cb.mCallback.asBinder().unlinkToDeath(cb, <span class="hljs-number">0</span>);
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">true</span>;
+            }
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">false</span>;
+        }
+    }</code></pre>
+
+<p>  从上面的源代码看到 是使用 Binder 对象作为Key，把 Listener封装于 Callback中和保存在mCallbacks里。当客户端再次发 Listeners对象过来时，会根据其 Binder对象来获取第一个传递进来的Listener对象进行 注销。 <br>
+  整个逻辑的关键点在于反序列化后的新生成的对象有一个共同点，就是他们底层的 Binder 对象是同一个的。  <br>
+  RemoteCallbackList还有一个有用的功能： 就是当客户端进程终止后，它能自动移除客户端所注册的 Listener: Callback 实现了 IBinder.DeathRecipient接口：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Callback</span> <span class="hljs-keyword">implements</span> <span class="hljs-title">IBinder</span>.<span class="hljs-title">DeathRecipient</span> {</span>
+        <span class="hljs-keyword">final</span> E mCallback;
+        <span class="hljs-keyword">final</span> Object mCookie;
+
+        Callback(E callback, Object cookie) {
+            ...
+        }
+
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">binderDied</span>() {
+            <span class="hljs-keyword">synchronized</span> (mCallbacks) {
+                mCallbacks.remove(mCallback.asBinder());
+            }
+            onCallbackDied(mCallback, mCookie);
+        }
+    }
+
+    <span class="hljs-comment">//在上面注册方法中有linkToDeath（）： 用来用这个IBinder注册一个 IBinder.DeathRecipient, 当他包含的进程消失的时候被调用。</span>
+     binder.linkToDeath(cb, <span class="hljs-number">0</span>);</code></pre>
+
+<p>可参考： <a href="http://blog.chinaunix.net/uid-9185047-id-3280878.html">IBinder中linkToDeath的介绍</a></p>
+
+<hr>
+
+
+
+<h3 id="remotecallbacklist使用">RemoteCallbackList使用</h3>
+
+<p><strong>定义监听接口 Listener</strong></p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">interface IMyListener {
+    <span class="hljs-keyword">void</span> onNewBookArrived(in Book)
+}</code></pre>
+
+<p><strong>服务端</strong> <br>
+  使用RemoteCallbackList来代替之前保存Listener对象的List(最关键一步):</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-keyword">private</span> RemoteCallbackList&lt;IMyListener&gt; mListenerList = <span class="hljs-keyword">new</span> RemoteCallbackList&lt;IMyListener&gt;();</code></pre>
+
+<p>  修改一下注册和注销方法：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-annotation">@Override</span>
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">registerListener</span>(IMyListener listener) <span class="hljs-keyword">throw</span> RemoteExcetion {
+    mListenerList.register(listener);
+}
+
+<span class="hljs-annotation">@Override</span>
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">unregisterListener</span>(IMyListener listener) <span class="hljs-keyword">throw</span> RemoteExcetion {
+    mListenerList.unregister(listener);
+}</code></pre>
+
+<p>  然后就是有新书到了（或者什么事情）,需要通知所有注册的客户端：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs "><span class="hljs-keyword">private</span> <span class="hljs-keyword">void</span> <span class="hljs-title">onNewBookArrived</span>(Book book)  <span class="hljs-keyword">throw</span> RemoteExcetion {
+    mBookList.add(Book);
+    <span class="hljs-comment">//进行通知之前的准备(其实就是把Callback对象拷贝一份出来放进mActiveBroadcast)，并返回当前注册Listener的数量</span>
+    <span class="hljs-keyword">final</span> <span class="hljs-keyword">int</span> N = mListenerList.beginBroadcast();
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; N; i++) {
+        <span class="hljs-comment">//从mActiveBroadcast中取出Callback,返回其Callback的Litener对象。</span>
+        IMyListener l = mListenerList.getBroadcastItem();
+        <span class="hljs-keyword">if</span>( l != <span class="hljs-keyword">null</span>) {
+            <span class="hljs-keyword">try</span>{
+                <span class="hljs-comment">//该方法将运行在客户端的Binder线程池中执行，服务端在期间将进行挂起。</span>
+                l.onNewBookArrived(book);
+            }<span class="hljs-keyword">catch</span> (RemoteException e){
+                e.printStackTrace();
+            }
+        }
+    }
+    <span class="hljs-comment">//结束（释放mActiveBroadcast的对象：重置为空）</span>
+    mListenerList.mListenerList();
+}</code></pre>
+
+<p>  AIDL的基本用法学习完了，需要注意的是：客户端调用远程服务方法，被调用的方法是运行在服务端的 Binder 线程池中，同时客户端线程会被挂起。 如果 服务端方法执行耗时，就会导致客户端线程长时间阻塞在这里，客户端是UI线程就会导致ANR等问题发生。因此如果知道这个远程方法耗时，就要避免在UI线程中进行调用。 <br>
+  客户端的 onServiceConnected() 和 onServiceDisconnected 方法都运行在UI方法中，所以也不可能在这里进行耗时操作。 <br>
+  由于服务端的方法本身就运行在服务端的 Binder 线程中，所以服务端方法本身就可以执行大量耗时操作，只要客户端不在UI线程调用它就可以了，另外切记不要在服务端方法开启线程进行异步任务。</p>
+
+
+
+<h3 id="binder程序的健壮性">Binder程序的健壮性</h3>
+
+<p>   Binder是可能意外死亡的，这样服务端进程意外停止，我们需要重新连接服务。  <br>
+   目前有2种方法： 第一种是给 Binder 设置 DeathRecipient 监听，当Binder死亡时，会进行回调 binderDied()方法，在这里可以进行重置远程服务；如上面介绍RemoteCallbackList里的 Callback对象就设置DeathRecipient 监听。 第二种是 在 onServiceDisconnected() 方法重连远程服务。 <br>
+   这2种方法的区别在于： onServiceDisconnected()方法在客户端的UI线程中被回调，而binderDied()方法在客户端的 Binder 线程池中被回调，也就是在 binderDied()方法我们不能访问 UI。</p>
+
+
+
+<h3 id="aidl-权限验证功能">AIDL 权限验证功能</h3>
+
+<p>  默认情况下，谁都可以远程这远程服务的。但我们希望只给一部分有权限的人进行连接，因此必须加入权限验证功能，权限验证失败则无法调用服务中的方法。 <br>
+  详细原理请参考 <a href="http://blog.csdn.net/xiayu98020214/article/details/8487165">Android检查权限</a>。在这里介绍两种常用的方法。</p>
+
+<p>  <strong>第一种</strong>： 可以在 onBind 中进行验证，验证不通过就直接返回 null, 这样就直接无法绑定服务，验证方式有多种，比如使用 Permission 验证： </p>
+
+<p>先在 AndroidMeniafest.xml 中声明所需的权限：</p>
+
+
+
+<pre class="prettyprint"><code class="language-xml hljs ">    <span class="hljs-tag">&lt;<span class="hljs-title">permission</span> <span class="hljs-attribute">android:name</span>=<span class="hljs-value">"com.example.samsung.learnapplication.permission.ACCESS_BOOK_SERCICE"</span>
+        <span class="hljs-attribute">android:protectionLevel</span>=<span class="hljs-value">"normal"</span>/&gt;</span>
+</code></pre>
+
+<p>定义权限后，就可以在 MyService 的 onBind 方法中进行：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">    <span class="hljs-annotation">@Override</span>
+    <span class="hljs-keyword">public</span> IBinder <span class="hljs-title">onBind</span>(Intent arg0) {
+        <span class="hljs-comment">//进行调用者的权限验证checkCallingOrSelfPermission()</span>
+        <span class="hljs-keyword">if</span>(PackageManager.PERMISSION_DENIED == checkCallingOrSelfPermission(<span class="hljs-string">"com.example.samsung.learnapplication.permission.ACCESS_BOOK_SERCICE"</span>))
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">null</span>;
+        <span class="hljs-keyword">return</span> stub;<span class="hljs-comment">//返回 Binder对象</span>
+    }</code></pre>
+
+<p>一个应用来绑定该服务时，会验证这个应用的权限，如果它没有使用空上权限就会直接返回 null.需要进行绑定上面服务的，只需要在AndroidMeniafest使用 permission： </p>
+
+
+
+<pre class="prettyprint"><code class="language-xml hljs ">    <span class="hljs-tag">&lt;<span class="hljs-title">uses-permission</span> <span class="hljs-attribute">android:name</span>=<span class="hljs-value">"com.example.samsung.learnapplication.permission.ACCESS_BOOK_SERCICE"</span>/&gt;</span></code></pre>
+
+<p>  <strong>第二种</strong>：可以在服务端的 onTransact 方法中进行权限验证，如果验证失败就直接返回 false, 这样服务端就不会终止执行 AIDL 中的方法，从面达到 保护服务端的效果。除了permission,可以通过  Uid , Pid 来做验证： 分别通过 getCallingUid() 和 getCallingPid() 可以拿到客户端所属的应用的 Uid 和 Pid.  下面为验证 permission 和 包名(：</p>
+
+
+
+<pre class="prettyprint"><code class="language-java hljs ">    <span class="hljs-comment">//实现IBookManager.AIDL上声明的接口</span>
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> IBookManager.Stub stub = <span class="hljs-keyword">new</span> IBookManager.Stub() {
+        ....
+        <span class="hljs-annotation">@Override</span>
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">boolean</span> <span class="hljs-title">onTransact</span>(<span class="hljs-keyword">int</span> code, Parcel data, Parcel reply, <span class="hljs-keyword">int</span> flags) <span class="hljs-keyword">throws</span> RemoteException {
+            <span class="hljs-keyword">int</span> check = checkCallingOrSelfPermission(<span class="hljs-string">"com.example.samsung.learnapplication.permission.ACCESS_BOOK_SERCICE"</span>);
+            <span class="hljs-keyword">if</span>(check == PackageManager.PERMISSION_DENIED)
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">false</span>;
+
+            String packageName = <span class="hljs-keyword">null</span>;
+            String[] packages = getPackageManager().getPackagesForUid(getCallingUid());
+            <span class="hljs-keyword">if</span> (packages != <span class="hljs-keyword">null</span> &amp;&amp; packages.length &gt; <span class="hljs-number">0</span>){
+                packageName = packages[<span class="hljs-number">0</span>];
+            }
+            <span class="hljs-keyword">if</span>(!packageName.startsWith(<span class="hljs-string">"com.example.yufen"</span>)){
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">false</span>;
+            }
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">super</span>.onTransact(code, data, reply, flags);
+        }
+    };
+</code></pre>
+
+<p>  与第一种方法，代替onbind方法, 其它步骤相同。这里略过。</p></div></body>
+</html>
