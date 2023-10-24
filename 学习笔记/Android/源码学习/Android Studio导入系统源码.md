@@ -90,7 +90,7 @@ sudo chmod 777 android.ipr
 
 #### **Exclude不需要的代码目录**
 
-File -> Project Structure -> Modules中可以通过Excluded来筛选代码目录，比如我们选择bionic目录，点击Excluded，bionic目录会变为橙色，bionic字段会出现在右侧视图中，说明该目录已经被Excluded掉，通俗来讲就是被排除在工程之外。如果不希望bionic目录被Excluded掉，再次点击Excluded，bionic目录会变为灰色。
+File -> Project Structure -> Modules可通过Excluded来筛选代码目录，比如我们选择bionic目录，点击Excluded，bionic目录会变为橙色，bionic字段会出现在右侧视图中，说明该目录已经被Excluded掉，通俗来讲就是被排除在工程之外。如果不希望bionic目录被Excluded掉，再次点击Excluded，bionic目录会变为灰色。
 
 ![img](https://s2.ax1x.com/2019/05/27/VZWWXq.png)
 
